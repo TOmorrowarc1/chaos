@@ -124,6 +124,8 @@ pub const SIGALRM: u32 = 14;
 
 pub const TIMER_WHEEL_SIZE: usize = 256;
 pub const TIMER_TICK_HZ: usize = 100;
+/// TODO: define proper boot epoch semantics (e.g., capture CLK value at init for monotonic clocks)
+pub const BOOT_EPOCH: usize = 0;
 
 pub const SOCK_STREAM: u32 = 1;
 pub const SOCK_DGRAM: u32 = 2;
@@ -1643,6 +1645,9 @@ impl FHandle {
             pipe,
             cloexec,
         }
+    }
+    pub fn open(path: &str, opt: FdOpt) -> Self {
+        Self::new(path, opt, false, false)
     }
     pub fn with_data(path: &str, opt: FdOpt, d: Vec<u8>) -> Self {
         Self {
@@ -4585,6 +4590,7 @@ pub struct Kernel {
     pub tasks: TaskTable,
     pub cache: BlockCache,
     pub pool: FramePool,
+    pub disk: Disk,
     pub cpus: Mutex<[Option<Arc<Task>>; MAX_CPU]>,
     pub mnt: MountTable,
     pub sem_store: RwLock<BTreeMap<u32, Weak<SemArr>>>,
@@ -4597,6 +4603,7 @@ impl Kernel {
             tasks: TaskTable::new(),
             cache: BlockCache::new(N_CHAINS),
             pool: FramePool::new(nf),
+            disk: Disk::new("main"),
             cpus: Mutex::new([None, None, None, None, None, None, None, None]),
             mnt: MountTable::new(),
             sem_store: RwLock::new(BTreeMap::new()),
@@ -4825,7 +4832,7 @@ impl Kernel {
                     let opt = FdOpt { rd, wr, ap: _append, nb: _nonblock };
                     let fh = FHandle::open("anon", opt);
                     fh.cloexec = _cloexec;
-                    let fd = t.add_file(FLike::File(Arc::new(fh)));
+                    let fd = t.add_file(FLike::File(fh));
                     if _truncate && wr {
                         let _ = t.files.lock().unwrap().get(&fd).map(|fl| {
                             if let FLike::File(ref f) = fl { let _ = f.set_len(0); }
@@ -6142,7 +6149,7 @@ impl WaitQueue {
 
     pub fn reorder_by_priority(&self) {
         let mut q = self.inner.lock().unwrap();
-        q.sort_by(|a, b| a.2.cmp(&b.2));
+        q.make_contiguous().sort_by(|a, b| a.2.cmp(&b.2));
     }
 }
 

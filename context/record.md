@@ -58,3 +58,27 @@ Result: 6 of 24 compile errors resolved (down to 18).
 `exceeds_any` returned `violations: usize` but declared `-> bool`. Since the function is a predicate ("does any limit exceed?"), replaced the accumulator with a `||` chain: `fds > max_fds || threads > max_threads || stack > max_stack_size`.
 
 Result: 7 of 24 compile errors resolved (down to 17).
+
+### 14:58 — Defined `BOOT_EPOCH` as `const usize = 0`
+
+`BOOT_EPOCH` was used in `SYS_CLOCK_GETTIME` (`clk_id == 1`, CLOCK_MONOTONIC) but never defined. Neither rCore nor the test suite define or reference it. Set to `0` since `CLK` starts at 0 at boot and `ticks + 0 = ticks` gives correct monotonic ticks-since-boot. Added a `TODO` comment noting it needs proper boot-time capture semantics.
+
+Result: 8 of 24 compile errors resolved (down to 16).
+
+### 15:08 — Added `disk: Disk` field to `Kernel` struct
+
+`Kernel` was missing the `disk: Disk` field referenced by `SYS_WRITE` (`fd <= 2` tracking) and `SYS_CLOSE` (cache eviction tracking). Added the field and initialized it in `new()` as `Disk::new("main")`. The underlying read/write/close logic remains messy (block cache manipulation in syscall handlers) — deferred for future refactoring.
+
+Result: 10 of 24 compile errors resolved (down to 14).
+
+### 15:13 — Added `FHandle::open` factory method + fixed `Arc<FHandle>` wrapper
+
+Added `FHandle::open(path, opt) -> Self` as a convenience constructor wrapping `new` with `pipe: false, cloexec: false`, matching POSIX `open` semantics. Also fixed `FLike::File(Arc::new(fh))` at the call site — `FLike::File` takes a plain `FHandle`, not `Arc<FHandle>`.
+
+Result: 11 of 24 compile errors resolved (down to 13).
+
+### 15:23 — Fixed `WaitQueue::reorder_by_priority` sort
+
+`VecDeque` doesn't have `sort_by` — it's a ring buffer, not a contiguous slice. Changed `q.sort_by(...)` to `q.make_contiguous().sort_by(...)`, which rearranges the buffer in-place then sorts the resulting `&mut [T]`.
+
+Result: 12 of 24 compile errors resolved (down to 12).
