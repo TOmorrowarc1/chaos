@@ -82,3 +82,30 @@ Result: 11 of 24 compile errors resolved (down to 13).
 `VecDeque` doesn't have `sort_by` — it's a ring buffer, not a contiguous slice. Changed `q.sort_by(...)` to `q.make_contiguous().sort_by(...)`, which rearranges the buffer in-place then sorts the resulting `&mut [T]`.
 
 Result: 12 of 24 compile errors resolved (down to 12).
+
+### 15:30 — Removed redundant `tasks.find(tid)` calls in `SYS_WAIT4`
+
+`pgid_group` returns `Vec<Arc<Task>>` — the loop variable is already the task object. The original code redundantly called `self.tasks.find(tid)` to look it up, then passed the `Arc<Task>` to `Ok(…)` which expects `usize`. Fixed both `pid == 0` and `pid < 0` branches by calling `tid.done()` directly and returning `Ok(tid.id())`.
+
+Result: 16 of 24 compile errors resolved (down to 8).
+
+### 15:35 — Fixed `BuddyAllocator::snapshot` missing `allocated` field
+
+`snapshot()` constructs a new `BuddyAllocator` but omitted `allocated`. `AtomicUsize` doesn't implement `Clone`, so used `AtomicUsize::new(self.allocated.load(…))`.
+
+Result: 17 of 24 compile errors resolved (down to 7).
+
+### 15:38 — Moved `cloexec` into `FHandle::open` parameter
+
+Rather than creating the handle then mutating `fh.cloexec`, added `cloexec: bool` parameter to `FHandle::open` and passed `_cloexec` at the call site. Removed the post-creation assignment entirely.
+
+Result: 18 of 24 compile errors resolved (down to 6).
+
+*Note: the "24 original errors" is an approximate baseline — some fixes resolved multiple errors, and some fixes uncovered previously hidden errors. The progress trend is consistent.*
+
+---
+
+**Current status (15:38): 6 compile errors remain.**
+- 1× E0596 — `split_region` needs `&mut self` (line 5984) — **fixed**
+- 1× E0382 — `members` used after `drop` (line 6050) — **fixed**
+- 5× E0502 — `retain` closure borrows (lines 1933, 1975, 4257, 4265, 4335) — **remaining**

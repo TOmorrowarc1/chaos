@@ -1646,8 +1646,8 @@ impl FHandle {
             cloexec,
         }
     }
-    pub fn open(path: &str, opt: FdOpt) -> Self {
-        Self::new(path, opt, false, false)
+    pub fn open(path: &str, opt: FdOpt, cloexec: bool) -> Self {
+        Self::new(path, opt, false, cloexec)
     }
     pub fn with_data(path: &str, opt: FdOpt, d: Vec<u8>) -> Self {
         Self {
@@ -4830,8 +4830,7 @@ impl Kernel {
                     let rd = _rdonly || _rdwr;
                     let wr = _wronly || _rdwr;
                     let opt = FdOpt { rd, wr, ap: _append, nb: _nonblock };
-                    let fh = FHandle::open("anon", opt);
-                    fh.cloexec = _cloexec;
+                    let fh = FHandle::open("anon", opt, _cloexec);
                     let fd = t.add_file(FLike::File(fh));
                     if _truncate && wr {
                         let _ = t.files.lock().unwrap().get(&fd).map(|fl| {
@@ -5149,10 +5148,8 @@ impl Kernel {
                             let group = self.tasks.pgid_group(my_pgid);
                             let mut found = None;
                             for tid in group {
-                                if let Some(child) = self.tasks.find(tid) {
-                                    if child.done() {
-                                        found = Some(tid);
-                                    }
+                                if tid.done() {
+                                    found = Some(tid.id());
                                 }
                             }
                             match found {
@@ -5184,10 +5181,8 @@ impl Kernel {
                         let group = self.tasks.pgid_group(pgid);
                         if group.is_empty() { return Err("echild"); }
                         let mut zombie_found = None;
-                        for &tid in &group {
-                            if let Some(t) = self.tasks.find(tid) {
-                                if t.done() { zombie_found = Some(tid); break; }
-                            }
+                        for t in &group {
+                            if t.done() { zombie_found = Some(t.id()); break; }
                         }
                         match zombie_found {
                             Some(id) => Ok(id),
@@ -5981,7 +5976,7 @@ impl AddrSpace {
         cow.values().filter(|f| f.count() > 1).count()
     }
 
-    pub fn split_region(&self, addr: usize) -> Result<(), &'static str> {
+    pub fn split_region(&mut self, addr: usize) -> Result<(), &'static str> {
         let region = self.vm_map.find(addr).ok_or("enomem")?;
         let offset = addr - region.base;
         if offset == 0 || offset >= region.len { return Err("einval"); }
@@ -6050,9 +6045,8 @@ impl ProcessGroup {
         drop(members);
         for pid in member_ids {
             let task = tasks.find(pid);
-            match task {
-                Some(t) => { t.send_sig(signo, self.leader as isize); }
-                None => { let _ = members.len(); }
+            if let Some(t) = task {
+                t.send_sig(signo, self.leader as isize);
             }
         }
     }
@@ -6400,6 +6394,7 @@ impl BuddyAllocator {
             max_order: self.max_order,
             base_addr: self.base_addr,
             total_pages: self.total_pages,
+            allocated: AtomicUsize::new(self.allocated.load(Ordering::Relaxed)),
         }
     }
 }
