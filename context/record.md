@@ -110,7 +110,7 @@ Result: 18 of 24 compile errors resolved (down to 6).
 - 1× E0382 — `members` used after `drop` (line 6050) — **fixed**
 - 5× E0502 — `retain` closure borrows (lines 1933, 1975, 4257, 4265, 4335) — **fixed**
 
-### 19:00 — Fixed 5× E0502 retain closure borrows
+### 18:30 — Fixed 5× E0502 retain closure borrows
 
 All 5 sites had the same pattern: `retain(|f| !f(struct.field))` where `retain` mutably borrows a Vec while the closure reads a sibling field on the same struct. Extracted the `u64` value into a local before calling `retain`, so the closure captures a `Copy` value instead of a reference into the struct. No semantic change — the same bit pattern is passed to the callbacks.
 
@@ -127,3 +127,22 @@ d.bus.cbs.retain(|f| !f(ev));
 
 **Final result: 24 of 24 original compile errors resolved. Project compiles cleanly with `cargo build`.**
 
+### 21:19 — Rewrote KernLock with ThreadId-based ownership
+
+`KernLock.holder` changed from `AtomicUsize` (user-provided arbitrary id) to `Mutex<Option<thread::ThreadId>>`. The `id` parameter on `enter`/`try_enter`/`leave` is kept as `_dbg_tag` for backward compatibility, stored in a new `dbg_tag: AtomicUsize` field for `owner()`. Key changes:
+
+- **enter**: captures `thread::current().id()`, compares against holder for recursion. No longer relies on caller providing a consistent id — different call sites on the same thread no longer deadlock.
+- **leave**: depth-aware (nested release only decrements). Verifies caller matches holder before releasing.
+- **try_enter**: same ThreadId logic with scoping block style.
+- **`tick()` / `sync_all()`**: replaced inline GKL field manipulation with `GKL.enter()`/`GKL.leave()` calls.
+- **`owner()`**: returns `dbg_tag` (the last tag passed to enter), preserving test expectations.
+
+**Motivation**: The old design allowed deadlock when two call sites on the same thread used different ids (e.g., `enter(1003)` followed by `tick(2001)`). ThreadId-based ownership is self-consistent regardless of the debug tag.
+
+### 21:28 — Fixed `Channel::recv` spinlock retention during `park()`
+
+`Channel::recv()` acquired `self.guard` (Spin lock) at entry but did not release it before `thread::park()` when no data was available. The thread blocked while holding the spinlock, causing `guard.is_held()` to remain true and failing the `basic_sleep_under_spinlock_uniprocessor` test.
+
+Fixed by releasing the guard before `park()` and re-acquiring after wake. A thread must never sleep while holding a spinlock — other threads spinning on it would burn CPU forever.
+
+**Current status: 26 passed, 10 failed** — group_01 and group_02 fully resolved.
