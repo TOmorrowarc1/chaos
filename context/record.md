@@ -108,4 +108,22 @@ Result: 18 of 24 compile errors resolved (down to 6).
 **Current status (15:38): 6 compile errors remain.**
 - 1× E0596 — `split_region` needs `&mut self` (line 5984) — **fixed**
 - 1× E0382 — `members` used after `drop` (line 6050) — **fixed**
-- 5× E0502 — `retain` closure borrows (lines 1933, 1975, 4257, 4265, 4335) — **remaining**
+- 5× E0502 — `retain` closure borrows (lines 1933, 1975, 4257, 4265, 4335) — **fixed**
+
+### 19:00 — Fixed 5× E0502 retain closure borrows
+
+All 5 sites had the same pattern: `retain(|f| !f(struct.field))` where `retain` mutably borrows a Vec while the closure reads a sibling field on the same struct. Extracted the `u64` value into a local before calling `retain`, so the closure captures a `Copy` value instead of a reference into the struct. No semantic change — the same bit pattern is passed to the callbacks.
+
+```rust
+// before
+d.bus.ev &= !EvFlag::READABLE;
+d.bus.cbs.retain(|f| !f(d.bus.ev));
+
+// after
+let ev = d.bus.ev & !EvFlag::READABLE;
+d.bus.ev = ev;
+d.bus.cbs.retain(|f| !f(ev));
+```
+
+**Final result: 24 of 24 original compile errors resolved. Project compiles cleanly with `cargo build`.**
+

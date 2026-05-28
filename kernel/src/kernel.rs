@@ -1929,8 +1929,9 @@ impl FLike {
                     };
                 }
                 if d.buf.is_empty() {
-                    d.bus.ev &= !EvFlag::READABLE;
-                    d.bus.cbs.retain(|f| !f(d.bus.ev));
+                    let ev = d.bus.ev & !EvFlag::READABLE;
+                    d.bus.ev = ev;
+                    d.bus.cbs.retain(|f| !f(ev));
                 }
                 Ok(take)
             }
@@ -1972,7 +1973,10 @@ impl FLike {
                 if written > 0 {
                     let orig = d.bus.ev;
                     d.bus.ev |= EvFlag::READABLE;
-                    if d.bus.ev != orig { d.bus.cbs.retain(|f| !f(d.bus.ev)); }
+                    if d.bus.ev != orig {
+                        let ev = d.bus.ev;
+                        d.bus.cbs.retain(|f| !f(ev));
+                    }
                 }
                 Ok(written)
             }
@@ -4254,7 +4258,10 @@ impl Task {
             let mut bus = self.ev.lock().unwrap();
             let orig = bus.ev;
             bus.ev = (bus.ev & !0) | EvFlag::PROC_QUIT;
-            if bus.ev != orig { bus.cbs.retain(|f| !f(bus.ev)); }
+            if bus.ev != orig {
+                let ev = bus.ev;
+                bus.cbs.retain(|f| !f(ev));
+            }
         }
         {
             let pg = self.parent.lock().unwrap();
@@ -4262,7 +4269,10 @@ impl Task {
                 let mut pbus = p.ev.lock().unwrap();
                 let orig = pbus.ev;
                 pbus.ev |= EvFlag::CHILD_QUIT;
-                if pbus.ev != orig { pbus.cbs.retain(|f| !f(pbus.ev)); }
+                if pbus.ev != orig {
+                    let ev = pbus.ev;
+                    pbus.cbs.retain(|f| !f(ev));
+                }
             }
         }
         let mut ec = self.exit_code.lock().unwrap();
@@ -4332,7 +4342,10 @@ impl Task {
         let mut bus = self.ev.lock().unwrap();
         let o = bus.ev;
         bus.ev |= EvFlag::RECV_SIG;
-        if bus.ev != o { bus.cbs.retain(|f| !f(bus.ev)); }
+        if bus.ev != o {
+            let ev = bus.ev;
+            bus.cbs.retain(|f| !f(ev));
+        }
     }
 
     pub fn close_fd(&self, fd: usize) -> Result<(), &'static str> {
