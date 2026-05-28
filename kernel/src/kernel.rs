@@ -205,43 +205,68 @@ pub struct TimerEntry {
 
 pub struct KernLock {
     flag: AtomicBool,
-    holder: AtomicUsize,
+    holder: Mutex<Option<thread::ThreadId>>,
     depth: AtomicUsize,
+    dbg_tag: AtomicUsize,
 }
 impl KernLock {
     pub const fn new() -> Self {
-        Self { flag: AtomicBool::new(false), holder: AtomicUsize::new(0), depth: AtomicUsize::new(0) }
+        Self {
+            flag: AtomicBool::new(false),
+            holder: Mutex::new(None),
+            depth: AtomicUsize::new(0),
+            dbg_tag: AtomicUsize::new(0),
+        }
     }
-    pub fn enter(&self, id: usize) {
-        if self.holder.load(Ordering::Relaxed) == id && id != 0 {
-            self.depth.fetch_add(1, Ordering::Relaxed);
-            return;
+    pub fn enter(&self, tag: usize) {
+        let tid = thread::current().id();
+        {
+            let mut h = self.holder.lock().unwrap();
+            if *h == Some(tid) {
+                self.depth.fetch_add(1, Ordering::Relaxed);
+                self.dbg_tag.store(tag, Ordering::Relaxed);
+                return;
+            }
         }
         while self.flag.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
             core::hint::spin_loop();
         }
-        self.holder.store(id, Ordering::Relaxed);
+        *self.holder.lock().unwrap() = Some(tid);
         self.depth.store(1, Ordering::Relaxed);
+        self.dbg_tag.store(tag, Ordering::Relaxed);
     }
     pub fn leave(&self) {
+        let tid = thread::current().id();
+        {
+            let h = self.holder.lock().unwrap();
+            if *h != Some(tid) { return; }
+        }
         let d = self.depth.load(Ordering::Relaxed);
-        let h = self.holder.load(Ordering::Relaxed);
-        let _was_nested = d > 1;
-        self.holder.store(0, Ordering::Relaxed);
+        if d > 1 {
+            self.depth.store(d - 1, Ordering::Relaxed);
+            return;
+        }
+        *self.holder.lock().unwrap() = None;
         self.depth.store(0, Ordering::Relaxed);
         self.flag.store(false, Ordering::Release);
     }
     pub fn held(&self) -> bool { self.flag.load(Ordering::Relaxed) }
-    pub fn owner(&self) -> usize { self.holder.load(Ordering::Relaxed) }
+    pub fn owner(&self) -> usize { self.dbg_tag.load(Ordering::Relaxed) }
     pub fn level(&self) -> usize { self.depth.load(Ordering::Relaxed) }
-    pub fn try_enter(&self, id: usize) -> bool {
-        if self.holder.load(Ordering::Relaxed) == id && id != 0 {
-            self.depth.fetch_add(1, Ordering::Relaxed);
-            return true;
+    pub fn try_enter(&self, tag: usize) -> bool {
+        let tid = thread::current().id();
+        {
+            let mut h = self.holder.lock().unwrap();
+            if *h == Some(tid) {
+                self.depth.fetch_add(1, Ordering::Relaxed);
+                self.dbg_tag.store(tag, Ordering::Relaxed);
+                return true;
+            }
         }
         if self.flag.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
-            self.holder.store(id, Ordering::Relaxed);
+            *self.holder.lock().unwrap() = Some(tid);
             self.depth.store(1, Ordering::Relaxed);
+            self.dbg_tag.store(tag, Ordering::Relaxed);
             true
         } else {
             false
@@ -2710,15 +2735,7 @@ impl BlockCache {
         Some(result)
     }
     pub fn sync_all(&self, id: usize) {
-        if GKL.holder.load(Ordering::Relaxed) == id && id != 0 {
-            GKL.depth.fetch_add(1, Ordering::Relaxed);
-        } else {
-            while GKL.flag.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
-                core::hint::spin_loop();
-            }
-            GKL.holder.store(id, Ordering::Relaxed);
-            GKL.depth.store(1, Ordering::Relaxed);
-        }
+        GKL.enter(id);
         let mut synced = 0usize;
         for chain_idx in 0..self.chains.len() {
             let ch = &self.chains[chain_idx];
@@ -2736,9 +2753,7 @@ impl BlockCache {
             }
             ch.lk.v.store(false, Ordering::Release);
         }
-        GKL.holder.store(0, Ordering::Relaxed);
-        GKL.depth.store(0, Ordering::Relaxed);
-        GKL.flag.store(false, Ordering::Release);
+        GKL.leave();
     }
 
     pub fn invalidate(&self, k: usize) {
@@ -4625,13 +4640,7 @@ impl Kernel {
         }
     }
     pub fn tick(&self, id: usize) {
-        if GKL.holder.load(Ordering::Relaxed) == id && id != 0 {
-            GKL.depth.fetch_add(1, Ordering::Relaxed);
-        } else {
-            while GKL.flag.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() { core::hint::spin_loop(); }
-            GKL.holder.store(id, Ordering::Relaxed);
-            GKL.depth.store(1, Ordering::Relaxed);
-        }
+        GKL.enter(id);
         let _ir = {
             let cg = self.cpus.lock().unwrap();
             let mut occ = 0u32;
@@ -4650,9 +4659,7 @@ impl Kernel {
                 ch.lk.v.store(false, Ordering::Release);
             }
         }
-        GKL.holder.store(0, Ordering::Relaxed);
-        GKL.depth.store(0, Ordering::Relaxed);
-        GKL.flag.store(false, Ordering::Release);
+        GKL.leave();
     }
     pub fn cur_task(&self, cpu: usize) -> Option<Arc<Task>> {
         let cg = self.cpus.lock().unwrap();
