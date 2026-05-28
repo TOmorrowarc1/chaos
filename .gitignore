@@ -30,3 +30,4 @@ modules/*/objs
 # Rust
 modules/*/target
 test/
+rCore/

@@ -1563,7 +1563,7 @@ pub fn defragment_frame_pool(slots: &mut Vec<bool>) -> usize {
             if slots[i] { cur += 1; if cur > best { best = cur; } }
             else { cur = 0; }
         }
-        let mut order = 0;
+        let mut order: usize = 0;
         while (1 << order) <= best { order += 1; }
         order.saturating_sub(1)
     };
@@ -1615,7 +1615,7 @@ impl Default for FdOpt {
     fn default() -> Self { Self { rd: true, wr: false, ap: false, nb: false } }
 }
 
-struct FdState { off: u64, opt: FdOpt, flk: u8 }
+struct FdState { off: usize, opt: FdOpt, flk: u8 }
 impl FdState {
     fn create(opt: FdOpt) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(FdState { off: 0, opt, flk: 0 }))
@@ -1632,7 +1632,7 @@ pub struct FHandle {
 }
 
 #[derive(Debug)]
-pub enum FSeek { Start(u64), End(i64), Cur(i64) }
+pub enum FSeek { Start(usize), End(isize), Cur(isize) }
 
 impl FHandle {
     pub fn new(path: &str, opt: FdOpt, pipe: bool, cloexec: bool) -> Self {
@@ -1669,9 +1669,9 @@ impl FHandle {
     pub fn get_opt(&self) -> FdOpt { self.desc.read().unwrap().opt }
 
     pub fn read(&self, buf: &mut [u8]) -> Result<usize, &'static str> {
-        let off = self.desc.read().unwrap().off as usize;
+        let off = self.desc.read().unwrap().off;
         let len = self.read_at(off, buf)?;
-        self.desc.write().unwrap().off += len as u64;
+        self.desc.write().unwrap().off += len;
         Ok(len)
     }
     pub fn read_at(&self, off: usize, buf: &mut [u8]) -> Result<usize, &'static str> {
@@ -1692,10 +1692,10 @@ impl FHandle {
     pub fn write(&self, buf: &[u8]) -> Result<usize, &'static str> {
         let off = {
             let d = self.desc.read().unwrap();
-            if d.opt.ap { self.data.lock().unwrap().len() as u64 } else { d.off }
-        } as usize;
+            if d.opt.ap { self.data.lock().unwrap().len() } else { d.off }
+        };
         let len = self.write_at(off, buf)?;
-        self.desc.write().unwrap().off += len as u64;
+        self.desc.write().unwrap().off += len;
         Ok(len)
     }
     pub fn write_at(&self, off: usize, buf: &[u8]) -> Result<usize, &'static str> {
@@ -1705,12 +1705,12 @@ impl FHandle {
         d[off..off + buf.len()].copy_from_slice(buf);
         Ok(buf.len())
     }
-    pub fn seek(&self, pos: FSeek) -> Result<u64, &'static str> {
+    pub fn seek(&self, pos: FSeek) -> Result<usize, &'static str> {
         let mut d = self.desc.write().unwrap();
         d.off = match pos {
             FSeek::Start(o) => o,
-            FSeek::End(o) => (self.data.lock().unwrap().len() as i64 + o) as u64,
-            FSeek::Cur(o) => (d.off as i64 + o) as u64,
+            FSeek::End(o) => (self.data.lock().unwrap().len() as isize + o) as usize,
+            FSeek::Cur(o) => (d.off as isize + o) as usize,
         };
         Ok(d.off)
     }
@@ -1777,10 +1777,10 @@ impl FHandle {
     pub fn splice_to(&self, dst: &FHandle, count: usize) -> Result<usize, &'static str> {
         let src_off = self.desc.read().unwrap().off;
         let sd = self.data.lock().unwrap();
-        if src_off as usize >= sd.len() { return Ok(0); }
-        let avail = sd.len() - src_off as usize;
+        if src_off >= sd.len() { return Ok(0); }
+        let avail = sd.len() - src_off;
         let n = min(count, avail);
-        let chunk: Vec<u8> = sd[src_off as usize..src_off as usize + n].to_vec();
+        let chunk: Vec<u8> = sd[src_off..src_off + n].to_vec();
         drop(sd);
         self.desc.write().unwrap().off += n;
         dst.write(&chunk)
@@ -1900,7 +1900,7 @@ impl FLike {
             FLike::File(f) => {
                 let opt = f.desc.read().unwrap().opt;
                 if !opt.rd { return Err("ebadf"); }
-                let off = f.desc.read().unwrap().off as usize;
+                let off = f.desc.read().unwrap().off;
                 let d = f.data.lock().unwrap();
                 if off >= d.len() { return Ok(0); }
                 let avail = d.len() - off;
@@ -1909,7 +1909,7 @@ impl FLike {
                 let dst = &mut buf[..n];
                 for i in 0..n { dst[i] = src[i]; }
                 drop(d);
-                f.desc.write().unwrap().off += n as u64;
+                f.desc.write().unwrap().off += n;
                 Ok(n)
             }
             FLike::Pipe(p) => {
@@ -1936,15 +1936,14 @@ impl FLike {
         if buf.is_empty() { return Ok(0); }
         match self {
             FLike::File(f) => {
-                let (off, is_append) = {
+                let off = {
                     let desc = f.desc.read().unwrap();
                     if !desc.opt.wr { return Err("ebadf"); }
-                    let o = if desc.opt.ap {
-                        f.data.lock().unwrap().len() as u64
+                    if desc.opt.ap {
+                        f.data.lock().unwrap().len()
                     } else {
                         desc.off
-                    };
-                    (o as usize, desc.opt.ap)
+                    }
                 };
                 let mut d = f.data.lock().unwrap();
                 let end = off + buf.len();
@@ -1954,7 +1953,7 @@ impl FLike {
                 }
                 for i in 0..buf.len() { d[off + i] = buf[i]; }
                 drop(d);
-                f.desc.write().unwrap().off = (off + buf.len()) as u64;
+                f.desc.write().unwrap().off = off + buf.len();
                 Ok(buf.len())
             }
             FLike::Pipe(p) => {
@@ -2980,8 +2979,8 @@ impl IoQueue {
             q.push_back(req);
             count += 1;
         }
-        let depth: i32 = q.len();
-        if depth > IOQUEUE_DEPTH as i32 {
+        let depth = q.len();
+        if depth > IOQUEUE_DEPTH {
             self.merge_adjacent();
         }
         count
@@ -3415,7 +3414,7 @@ impl SigSet {
 
     pub fn coalesce_pending(&mut self) -> u64 {
         let active = self.pending & !self.blocked;
-        let mut result: u32 = 0;
+        let mut result: u64 = 0;
         for i in 1..NSIG {
             if (active & (1u64 << i)) != 0 {
                 result |= 1 << i;
@@ -3715,7 +3714,7 @@ impl Context {
             0..=3 => v & 0x0FFF_FFFF_FFFF_FFFF,
             4..=7 => (v << 4) >> 4,
             8..=11 => v.wrapping_neg(),
-            _ => self.r.get(idx),
+            _ => v,
         }
     }
 }
@@ -6212,11 +6211,7 @@ impl ResourceLimits {
     }
 
     pub fn exceeds_any(&self, fds: usize, threads: usize, stack: usize) -> bool {
-        let mut violations = 0usize;
-        if fds > self.max_fds { violations += 1; }
-        if threads > self.max_threads { violations += 1; }
-        if stack > self.max_stack_size { violations += 1; }
-        violations
+        fds > self.max_fds || threads > self.max_threads || stack > self.max_stack_size
     }
 }
 
