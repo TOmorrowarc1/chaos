@@ -146,3 +146,14 @@ d.bus.cbs.retain(|f| !f(ev));
 Fixed by releasing the guard before `park()` and re-acquiring after wake. A thread must never sleep while holding a spinlock — other threads spinning on it would burn CPU forever.
 
 **Current status: 26 passed, 10 failed** — group_01 and group_02 fully resolved.
+
+### 10:27 — Fixed `SyncQueue::park_on` lost-wakeup and spurious-wakeup bugs
+
+Added `pending: AtomicBool` to `SyncQueue` to bridge the gap between the predicate check and queue registration in `park_on`. The signal-before-wait and mid-crack races are handled by setting `pending` under the queue lock — `park_on` consumes it after locking the queue and rechecks the predicate. After `park()` returns (woken by signal/broadcast/spuriously), `park_on` rechecks the predicate once and returns its value, ensuring truthful results.
+
+**Changes:**
+- `SyncQueue::signal`: if queue is empty, set `pending = true` instead of dropping the signal
+- `SyncQueue::park_on`: consume `pending` under queue lock; if set, recheck predicate and return. After `park()` returns, recheck predicate and return its value rather than unconditional `true`.
+- `SyncQueue::new`: initialize `pending = false`
+
+**Current status: 29 passed, 7 failed** — group_01, group_02, group_03 fully resolved.
