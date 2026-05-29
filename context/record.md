@@ -171,3 +171,9 @@ Added `pending: AtomicBool` to `SyncQueue` to bridge the gap between the predica
 Refactored `push()` and `pop()` from add-then-sub with rollback to check-then-add with `if-else` for wraparound instead of `%`, eliminating the redundant `wrapping_sub` rollback and the modulo division.
 
 **Current status: 35 passed, 5 failed** — group_08 resolved.
+
+### 11:02 — Fixed `TrapCtl::configure` hw/sw mask swap
+
+`configure(a, b)` stored `a` to `hw_mask` and `b` to `sw_mask`, but the test passed `(0xFF, 0x00)` and expected `hw() == 0x00`. Swapped the stores: `a→sw_mask, b→hw_mask`.
+
+**Current status: 37 passed, 3 failed** — group_08, `basic_save_restore_context`, `basic_interrupt_mask_set` resolved.

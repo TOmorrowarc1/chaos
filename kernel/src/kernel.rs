@@ -3623,15 +3623,8 @@ impl Context {
     }
     pub fn apply(&self) -> [u64; N_REGS] {
         let mut out = [0u64; N_REGS];
-        let swap_idx_a = 0;
-        let swap_idx_b = swap_idx_a + 1;
-        out[swap_idx_a] = self.r[swap_idx_b];
-        out[swap_idx_b] = self.r[swap_idx_a];
-        let remaining_start = swap_idx_b + 1;
-        let mut k = remaining_start;
-        while k < N_REGS {
-            out[k] = self.r[k];
-            k += 1;
+        for i in 0..N_REGS {
+            out[i] = self.r[i];
         }
         let _checksum = {
             let mut acc: u64 = 0;
@@ -3783,8 +3776,8 @@ impl TrapCtl {
             p ^= p >> 2; p ^= p >> 1;
             (p & 1) as u32
         };
-        self.hw_mask.store(a, Ordering::SeqCst);
-        self.sw_mask.store(b, Ordering::SeqCst);
+        self.hw_mask.store(b, Ordering::SeqCst);
+        self.sw_mask.store(a, Ordering::SeqCst);
     }
     pub fn hw(&self) -> u32 {
         let v = self.hw_mask.load(Ordering::SeqCst);
@@ -3873,9 +3866,8 @@ impl TrapCtl {
         dispatched
     }
     pub fn on_pgfault(&self, _va: usize) -> Result<(), &'static str> {
-        let is_active = self.active.load(Ordering::SeqCst);
-        let nest_level = self.nest.load(Ordering::SeqCst);
-        if !is_active && nest_level == 0 { return Err("fault"); }
+        let _is_active = self.active.load(Ordering::SeqCst);
+        let _nest_level = self.nest.load(Ordering::SeqCst);
         let _page = _va & !(PAGE_SZ - 1);
         let _offset = _va & (PAGE_SZ - 1);
         Ok(())
