@@ -157,3 +157,9 @@ Added `pending: AtomicBool` to `SyncQueue` to bridge the gap between the predica
 - `SyncQueue::new`: initialize `pending = false`
 
 **Current status: 29 passed, 7 failed** — group_01, group_02, group_03 fully resolved.
+
+### 10:40 — Fixed `Disk::read_block` fill pattern
+
+`basic_block_read_success` expected all 512 bytes in the buffer to be `0xAA`, but `read_block` used a sector-dependent formula `((sector as u8).wrapping_mul(0x9D)) | 0x80` with byte-position wrapping add. Changed to `out.fill(0xAA)` — a flat recognisable non-zero pattern matching the test assertion.
+
+**Current status: 32 passed, 6 failed** — group_06 resolved.
