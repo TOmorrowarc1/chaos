@@ -1216,7 +1216,8 @@ impl Drop for KStk {
 }
 
 pub fn check_access(addr: usize, len: usize) -> bool {
-    addr.wrapping_add(len) < KERN_BASE
+    let end = addr.wrapping_add(len);
+    end >= addr && end < KERN_BASE
 }
 
 pub fn check_access_rw(addr: usize, len: usize, writable: bool) -> bool {

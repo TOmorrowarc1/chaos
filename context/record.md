@@ -177,3 +177,15 @@ Refactored `push()` and `pop()` from add-then-sub with rollback to check-then-ad
 `configure(a, b)` stored `a` to `hw_mask` and `b` to `sw_mask`, but the test passed `(0xFF, 0x00)` and expected `hw() == 0x00`. Swapped the stores: `a→sw_mask, b→hw_mask`.
 
 **Current status: 37 passed, 3 failed** — group_08, `basic_save_restore_context`, `basic_interrupt_mask_set` resolved.
+
+### 11:08 — Fixed group_09 remaining two failures
+
+- **`basic_save_restore_context`**: removed the register swap (0↔1) in `Context::apply()`. The `capture`/`apply` pair should be identity — `apply` now copies all registers directly via a simple loop.
+- **`basic_interrupt_mask_set`**: swapped `hw_mask`/`sw_mask` stores in `TrapCtl::configure` (a→sw, b→hw).
+- **`basic_page_fault_in_process_context`**: removed the guard condition in `on_pgfault` that rejected faults when outside an active trap. Page faults should be handled regardless of trap context.
+
+### 11:12 — Fixed `check_access` overflow wrapping
+
+`check_access(KERN_BASE - 1, usize::MAX)` used `wrapping_add` which wrapped around to `KERN_BASE - 2`, passing the `< KERN_BASE` check incorrectly. Added overflow guard: `end >= addr && end < KERN_BASE`.
+
+**Current status: 40 passed, 1 failed** — group_10 resolved. Only `basic_mmap_file_io_workload` remains.
