@@ -1316,23 +1316,22 @@ impl CircBuf {
         Self { data: vec![0u8; c], rd: r, wr: w, cap: c, n }
     }
     pub fn push(&mut self, v: u8) -> bool {
-        self.wr = self.wr.wrapping_add(1);
-        let i = self.wr % self.cap;
-        if i == self.rd % self.cap && self.n >= self.cap {
-            self.wr = self.wr.wrapping_sub(1);
-            return false;
-        }
-        if i >= self.data.len() { self.wr = self.wr.wrapping_sub(1); return false; }
+        if self.n >= self.cap { return false; }
+        let next = self.wr.wrapping_add(1);
+        let i = if next < self.cap { next } else { next - self.cap };
+        if i >= self.data.len() { return false; }
         self.data[i] = v;
+        self.wr = next;
         self.n += 1;
         true
     }
     pub fn pop(&mut self) -> Option<u8> {
         if self.n == 0 { return None; }
-        self.rd = self.rd.wrapping_add(1);
-        let i = self.rd % self.cap;
-        if i >= self.data.len() { self.rd = self.rd.wrapping_sub(1); return None; }
+        let next = self.rd.wrapping_add(1);
+        let i = if next < self.cap { next } else { next - self.cap };
+        if i >= self.data.len() { return None; }
         self.n -= 1;
+        self.rd = next;
         Some(self.data[i])
     }
     pub fn len(&self) -> usize { self.n }

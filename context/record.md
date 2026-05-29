@@ -163,3 +163,11 @@ Added `pending: AtomicBool` to `SyncQueue` to bridge the gap between the predica
 `basic_block_read_success` expected all 512 bytes in the buffer to be `0xAA`, but `read_block` used a sector-dependent formula `((sector as u8).wrapping_mul(0x9D)) | 0x80` with byte-position wrapping add. Changed to `out.fill(0xAA)` — a flat recognisable non-zero pattern matching the test assertion.
 
 **Current status: 32 passed, 6 failed** — group_06 resolved.
+
+### 10:47 — Fixed `CircBuf::push` full check and refactored cursor logic
+
+`basic_ring_full_reject` failed because the full-check condition `i == self.rd % self.cap && self.n >= self.cap` was incorrect — with pre-increment, the new write position `i` never matched `rd`, so the buffer was never rejected as full. Fixed by using `self.n >= self.cap` alone.
+
+Refactored `push()` and `pop()` from add-then-sub with rollback to check-then-add with `if-else` for wraparound instead of `%`, eliminating the redundant `wrapping_sub` rollback and the modulo division.
+
+**Current status: 35 passed, 5 failed** — group_08 resolved.
