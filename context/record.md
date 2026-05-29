@@ -147,6 +147,8 @@ Fixed by releasing the guard before `park()` and re-acquiring after wake. A thre
 
 **Current status: 26 passed, 10 failed** — group_01 and group_02 fully resolved.
 
+## 2026-05-29
+
 ### 10:27 — Fixed `SyncQueue::park_on` lost-wakeup and spurious-wakeup bugs
 
 Added `pending: AtomicBool` to `SyncQueue` to bridge the gap between the predicate check and queue registration in `park_on`. The signal-before-wait and mid-crack races are handled by setting `pending` under the queue lock — `park_on` consumes it after locking the queue and rechecks the predicate. After `park()` returns (woken by signal/broadcast/spuriously), `park_on` rechecks the predicate once and returns its value, ensuring truthful results.
