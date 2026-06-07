@@ -191,3 +191,8 @@ Refactored `push()` and `pop()` from add-then-sub with rollback to check-then-ad
 `check_access(KERN_BASE - 1, usize::MAX)` used `wrapping_add` which wrapped around to `KERN_BASE - 2`, passing the `< KERN_BASE` check incorrectly. Added overflow guard: `end >= addr && end < KERN_BASE`.
 
 **Current status: 40 passed, 1 failed** — group_10 resolved. Only `basic_mmap_file_io_workload` remains.
+2026-06-06 16:16 - Created kernel/src/sync/ with 5 files: spin_lock (SpinLock+SpinGuard), no_irq_lock (SpinNoIrqLock+NoIrqGuard+FlagsGuard), event_bus (EventBus+Event), condvar (broken spin-loop Condvar), semaphore (async Semaphore). All methods todo!() except notify_* (no-ops) and wait_events (spin loop).
+2026-06-06 16:19 - Merged spin_lock.rs + no_irq_lock.rs into sync/mutex.rs. Fixed condvar.rs reference path. Added EventBusFuture to sync-conclusion.md.
+2026-06-06 16:22 - Created kernel/src/trap.rs with TICK/TICK_ALL_PROCESSORS atomics, TICK_ACTIVITY Condvar, NAIVE_TIMER lazy_static, do_tick/timer/serial stubs.
+2026-06-07 15:11 - Moved memory_module.md to context/interfaces/memory-conclusion.md. Created kernel/src/memory.rs with frame allocator, KernelStack, heap init/enlarge, page fault stubs, address translation, access_ok/copy stubs.
+2026-06-07 15:20 - Added read_user_fixup + copy_from_user/copy_to_user with .text.copy_user section to memory.rs.
