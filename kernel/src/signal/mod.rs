@@ -2,7 +2,7 @@ use crate::arch::{
     signal::{set_signal_handler, MachineContext, RET_CODE},
     syscall::SYS_RT_SIGRETURN,
 };
-use crate::process::{process, process_of, Process, Thread};
+use crate::task::{process, process_of, Process, Thread};
 use crate::sync::{Event, MutexGuard, SpinNoIrq, SpinNoIrqLock as Mutex};
 use alloc::sync::Arc;
 use bitflags::*;

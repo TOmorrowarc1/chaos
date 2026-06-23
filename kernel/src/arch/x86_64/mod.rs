@@ -65,7 +65,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     // init board
     board::init(boot_info);
     // init cpu scheduler and process manager, and add user shell app in process manager
-    crate::process::init();
+    crate::task::init();
     // load acpi
     acpi::init(boot_info.acpi2_rsdp_addr as usize);
 

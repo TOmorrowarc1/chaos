@@ -1,6 +1,6 @@
 use crate::arch::paging::get_root_page_table_ptr;
 use crate::drivers::IRQ_MANAGER;
-use crate::process::thread::Thread;
+use crate::task::thread::Thread;
 use alloc::sync::Arc;
 use log::*;
 use mips::addr::*;

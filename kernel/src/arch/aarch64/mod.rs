@@ -40,7 +40,7 @@ pub extern "C" fn main_start() -> ! {
     crate::lkm::manager::ModuleManager::init();
     board::init();
 
-    crate::process::init();
+    crate::task::init();
 
     // wake up other CPUs
     AP_CAN_INIT.store(true, Ordering::Relaxed);

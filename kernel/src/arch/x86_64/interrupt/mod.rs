@@ -3,7 +3,7 @@ mod handler;
 
 pub use self::handler::*;
 use crate::memory::phys_to_virt;
-use crate::process::thread::Thread;
+use crate::task::thread::Thread;
 use alloc::sync::Arc;
 use apic::*;
 use trapframe::{TrapFrame, UserContext};

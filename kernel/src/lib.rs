@@ -51,7 +51,7 @@ pub mod lang;
 pub mod lkm;
 pub mod memory;
 pub mod net;
-pub mod process;
+pub mod task;
 #[cfg(feature = "hypervisor")]
 pub mod rvm;
 pub mod shell;

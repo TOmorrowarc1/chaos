@@ -1,6 +1,6 @@
 use crate::arch::interrupt::consts::SupervisorExternal;
 use crate::drivers::IRQ_MANAGER;
-use crate::process::thread::Thread;
+use crate::task::thread::Thread;
 use alloc::sync::Arc;
 use log::*;
 use riscv::register::*;

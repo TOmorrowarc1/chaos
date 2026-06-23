@@ -2,7 +2,7 @@
 
 pub use self::handler::*;
 use crate::arch::board::timer::is_pending;
-use crate::process::thread::Thread;
+use crate::task::thread::Thread;
 use aarch64::regs::*;
 use alloc::sync::Arc;
 use trapframe::UserContext;

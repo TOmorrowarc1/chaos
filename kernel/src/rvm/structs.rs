@@ -34,7 +34,7 @@ impl Guest {
 
     pub fn add_memory_region(&self, gpaddr: GuestPhysAddr, size: usize) -> RvmResult<HostVirtAddr> {
         self.inner.add_memory_region(gpaddr, size, None)?;
-        let thread = crate::process::current_thread().unwrap();
+        let thread = crate::task::current_thread().unwrap();
         let hvaddr = thread.vm.lock().find_free_area(PAGE_SIZE, size);
         let handler =
             RvmPageTableHandlerDelay::new(gpaddr, hvaddr, self.gpm.clone(), GlobalFrameAlloc);

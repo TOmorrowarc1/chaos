@@ -46,7 +46,7 @@ pub extern "C" fn rust_main() -> ! {
     info!("Hello MIPS 32 from CPU {}, dtb @ {:#x}", cpu_id, dtb_start);
 
     //crate::drivers::init(dtb_start);
-    crate::process::init();
+    crate::task::init();
 
     // TODO: start other CPU
     // unsafe { cpu::start_others(hart_mask); }
