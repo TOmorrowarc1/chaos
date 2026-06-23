@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use rcore_fs::vfs::*;
 use rcore_fs_devfs::{special::{NullINode, ZeroINode}, DevFS};
 use rcore_fs_mountfs::MountFS;

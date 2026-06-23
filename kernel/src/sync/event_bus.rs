@@ -3,6 +3,9 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::bitflags;
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 
 bitflags! {
     pub struct Event: u32 {
@@ -56,6 +59,25 @@ impl EventBus {
     }
 
     pub fn get_callback_len(&self) -> usize {
+        todo!()
+    }
+}
+
+/// Return a future that resolves once any event in `mask` is set on `bus`.
+pub fn wait_for_event(bus: Arc<Mutex<EventBus>>, mask: Event) -> impl Future<Output = Event> {
+    EventBusFuture { bus, mask }
+}
+
+#[must_use = "future does nothing unless polled/`await`-ed"]
+struct EventBusFuture {
+    bus: Arc<Mutex<EventBus>>,
+    mask: Event,
+}
+
+impl Future for EventBusFuture {
+    type Output = Event;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         todo!()
     }
 }

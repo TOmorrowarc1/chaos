@@ -1,5 +1,6 @@
 use crate::arch::interrupt;
 use core::cell::UnsafeCell;
+use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicBool, Ordering};
 
@@ -10,8 +11,8 @@ pub struct SpinLock<T> {
     data: UnsafeCell<T>,
 }
 
-unsafe impl<T: ?Sized + Send> Sync for SpinLock<T> {}
-unsafe impl<T: ?Sized + Send> Send for SpinLock<T> {}
+unsafe impl<T: Send> Sync for SpinLock<T> {}
+unsafe impl<T: Send> Send for SpinLock<T> {}
 
 pub struct SpinGuard<'a, T> {
     lock: &'a SpinLock<T>,
@@ -61,8 +62,8 @@ pub struct SpinNoIrqLock<T> {
     data: UnsafeCell<T>,
 }
 
-unsafe impl<T: ?Sized + Send> Sync for SpinNoIrqLock<T> {}
-unsafe impl<T: ?Sized + Send> Send for SpinNoIrqLock<T> {}
+unsafe impl<T: Send> Sync for SpinNoIrqLock<T> {}
+unsafe impl<T: Send> Send for SpinNoIrqLock<T> {}
 
 pub struct NoIrqGuard<'a, T> {
     lock: &'a SpinNoIrqLock<T>,
@@ -117,4 +118,53 @@ impl Drop for FlagsGuard {
 
 impl FlagsGuard {
     pub fn no_irq_region() -> Self { Self(unsafe { interrupt::disable_and_store() }) }
+}
+
+// Compatibility alias: in this simple design the "mutex guard" is the
+// interrupt-safe spinlock guard. (rCore parameterized this over a strategy
+// type; we drop that parameter.)
+pub type MutexGuard<'a, T> = NoIrqGuard<'a, T>;
+
+// === Clone / Default / Debug — same semantics as the standard library locks ===
+
+impl<T: Clone> Clone for SpinLock<T> {
+    fn clone(&self) -> Self {
+        SpinLock::new(self.lock().clone())
+    }
+}
+
+impl<T: Default> Default for SpinLock<T> {
+    fn default() -> Self {
+        SpinLock::new(T::default())
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for SpinLock<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.try_lock() {
+            Some(guard) => f.debug_struct("SpinLock").field("data", &*guard).finish(),
+            None => f.debug_struct("SpinLock").field("data", &"<locked>").finish(),
+        }
+    }
+}
+
+impl<T: Clone> Clone for SpinNoIrqLock<T> {
+    fn clone(&self) -> Self {
+        SpinNoIrqLock::new(self.lock().clone())
+    }
+}
+
+impl<T: Default> Default for SpinNoIrqLock<T> {
+    fn default() -> Self {
+        SpinNoIrqLock::new(T::default())
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for SpinNoIrqLock<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.try_lock() {
+            Some(guard) => f.debug_struct("SpinNoIrqLock").field("data", &*guard).finish(),
+            None => f.debug_struct("SpinNoIrqLock").field("data", &"<locked>").finish(),
+        }
+    }
 }

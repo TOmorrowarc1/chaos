@@ -3,6 +3,7 @@ use super::handle::FileHandle;
 use crate::net::Socket;
 use crate::syscall::{SysError, SysResult};
 use alloc::boxed::Box;
+use core::fmt;
 use rcore_fs::vfs::{MMapArea, PollStatus};
 
 #[derive(Clone)]
@@ -10,6 +11,16 @@ pub enum FileLike {
     File(FileHandle),
     Socket(Box<dyn Socket>),
     EpollInstance(EpollInstance),
+}
+
+impl fmt::Debug for FileLike {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FileLike::File(file) => write!(f, "File({})", file.path),
+            FileLike::Socket(_) => write!(f, "Socket"),
+            FileLike::EpollInstance(_) => write!(f, "EpollInstance"),
+        }
+    }
 }
 
 impl FileLike {
@@ -22,21 +33,21 @@ impl FileLike {
     }
 
     pub async fn read(&mut self, buf: &mut [u8]) -> SysResult {
-        match self {
+        let len = match self {
             FileLike::File(file) => file.read(buf).await?,
             FileLike::Socket(socket) => socket.read(buf).0?,
             FileLike::EpollInstance(_) => return Err(SysError::ENOSYS),
-        }
-        Ok(0)
+        };
+        Ok(len)
     }
 
     pub fn write(&mut self, buf: &[u8]) -> SysResult {
-        match self {
+        let len = match self {
             FileLike::File(file) => file.write(buf)?,
             FileLike::Socket(socket) => socket.write(buf, None)?,
             FileLike::EpollInstance(_) => return Err(SysError::ENOSYS),
-        }
-        Ok(0)
+        };
+        Ok(len)
     }
 
     pub fn ioctl(&mut self, request: usize, arg1: usize, arg2: usize, arg3: usize) -> SysResult {
@@ -56,24 +67,26 @@ impl FileLike {
     }
 
     pub fn poll(&self) -> Result<PollStatus, SysError> {
-        match self {
+        let status = match self {
             FileLike::File(file) => file.poll()?,
             FileLike::Socket(socket) => {
                 let (read, write, error) = socket.poll();
-                return Ok(PollStatus { read, write, error });
+                PollStatus { read, write, error }
             }
             FileLike::EpollInstance(_) => return Err(SysError::ENOSYS),
-        }
+        };
+        Ok(status)
     }
 
     pub async fn async_poll(&self) -> Result<PollStatus, SysError> {
-        match self {
+        let status = match self {
             FileLike::File(file) => file.async_poll().await?,
             FileLike::Socket(socket) => {
                 let (read, write, error) = socket.poll();
-                return Ok(PollStatus { read, write, error });
+                PollStatus { read, write, error }
             }
             FileLike::EpollInstance(_) => return Err(SysError::ENOSYS),
-        }
+        };
+        Ok(status)
     }
 }

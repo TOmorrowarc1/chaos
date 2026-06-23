@@ -6,7 +6,7 @@ use crate::fs::epoll::EpollEvent;
 use crate::memory::{copy_from_user, MemorySet};
 use crate::task::*;
 use crate::signal::{Signal, SignalAction, SignalFrame, SignalStack, SignalUserContext, Sigset};
-use crate::sync::{Condvar, MutexGuard, SpinNoIrq};
+use crate::sync::{Condvar, MutexGuard};
 use crate::util;
 use alloc::{string::String, sync::Arc, vec::Vec};
 use bitflags::bitflags;
@@ -89,12 +89,12 @@ struct Syscall<'a> {
 impl Syscall<'_> {
     /// Get current process
     /// spinlock is tend to deadlock, use busy waiting
-    pub fn process(&self) -> MutexGuard<'_, Process, SpinNoIrq> {
+    pub fn process(&self) -> MutexGuard<'_, Process> {
         self.thread.proc.busy_lock()
     }
 
     /// Get current virtual memory
-    pub fn vm(&self) -> MutexGuard<'_, MemorySet, SpinNoIrq> {
+    pub fn vm(&self) -> MutexGuard<'_, MemorySet> {
         self.thread.vm.lock()
     }
 

@@ -3,7 +3,7 @@ use crate::arch::{
     syscall::SYS_RT_SIGRETURN,
 };
 use crate::task::{process, process_of, Process, Thread};
-use crate::sync::{Event, MutexGuard, SpinNoIrq, SpinNoIrqLock as Mutex};
+use crate::sync::{Event, MutexGuard, SpinNoIrqLock as Mutex};
 use alloc::sync::Arc;
 use bitflags::*;
 use num::FromPrimitive;
