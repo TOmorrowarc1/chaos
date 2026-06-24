@@ -1,7 +1,15 @@
+use crate::fs::FileLike;
 use crate::task::Process;
 use crate::sync::SpinNoIrqLock;
 use crate::syscall::{SysError, SysResult};
 use alloc::collections::{BTreeMap, BTreeSet};
+
+pub struct EPollCtlOp;
+impl EPollCtlOp {
+    pub const ADD: i32 = 1;
+    pub const DEL: i32 = 2;
+    pub const MOD: i32 = 3;
+}
 
 #[derive(Clone)]
 pub struct EpollInstance {
@@ -20,7 +28,33 @@ impl EpollInstance {
     }
 
     pub fn control(&mut self, op: usize, fd: usize, event: &EpollEvent) -> SysResult {
-        todo!()
+        match op as i32 {
+            EPollCtlOp::ADD => {
+                self.events.insert(fd, event.clone());
+                // Mark for an initial readiness check on the next epoll_wait
+                // — handles the case where the fd was already ready at
+                // registration time (no future activity event is coming).
+                self.new_ctl_list.lock().insert(fd);
+            }
+            EPollCtlOp::MOD => {
+                if self.events.get(&fd).is_some() {
+                    self.events.remove(&fd);
+                    self.events.insert(fd, event.clone());
+                    self.new_ctl_list.lock().insert(fd);
+                } else {
+                    return Err(SysError::EPERM);
+                }
+            }
+            EPollCtlOp::DEL => {
+                if self.events.get(&fd).is_some() {
+                    self.events.remove(&fd);
+                } else {
+                    return Err(SysError::EPERM);
+                }
+            }
+            _ => return Err(SysError::EPERM),
+        }
+        Ok(0)
     }
 }
 
@@ -55,19 +89,19 @@ impl EpollEvent {
     }
 }
 
-pub struct EPollCtlOp;
-impl EPollCtlOp {
-    pub const ADD: i32 = 1;
-    pub const DEL: i32 = 2;
-    pub const MOD: i32 = 3;
-}
-
 impl Process {
     pub fn get_epoll_instance_mut(&mut self, fd: usize) -> Result<&mut EpollInstance, SysError> {
-        todo!()
+        match self.get_file_like(fd)? {
+            FileLike::EpollInstance(instance) => Ok(instance),
+            _ => Err(SysError::EPERM),
+        }
     }
 
     pub fn get_epoll_instance(&self, fd: usize) -> Result<&EpollInstance, SysError> {
-        todo!()
+        match self.files.get(&fd) {
+            Some(FileLike::EpollInstance(instance)) => Ok(instance),
+            Some(_) => Err(SysError::EPERM),
+            None => Err(SysError::EPERM),
+        }
     }
 }
