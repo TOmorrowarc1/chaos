@@ -125,6 +125,14 @@ impl<'a, T> DerefMut for NoIrqGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T { unsafe { &mut *self.lock.data.get() } }
 }
 
+impl<'a, T> NoIrqGuard<'a, T> {
+    /// The lock this guard came from. Used by `Condvar::wait` to drop the guard
+    /// and re-acquire the same lock.
+    pub fn mutex(&self) -> &'a SpinNoIrqLock<T> {
+        self.lock
+    }
+}
+
 impl<T> SpinNoIrqLock<T> {
     pub const fn new(user_data: T) -> Self {
         SpinNoIrqLock { lock: AtomicBool::new(false), data: UnsafeCell::new(user_data) }

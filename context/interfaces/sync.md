@@ -136,3 +136,28 @@ impl Semaphore {
     pub fn set(&self, value: isize);
 }
 ```
+
+## TODO: make `Condvar` waits async (replace the busy-spin)
+
+`Condvar` is currently a **faithful port of rCore's busy-spin**: `wait_events` loops calling
+`condition()` until satisfied, relying on interrupt handlers (timer / NIC / serial) to update the
+checked state via `notify_*` on the global condvars (`TICK_ACTIVITY`, `SOCKET_ACTIVITY`,
+`SERIAL_ACTIVITY`). This burns CPU while waiting and monopolizes the single-threaded executor
+until an interrupt flips the condition. The `wait_queue` / `notify_*` / epoll machinery is largely
+vestigial (no real thread parking).
+
+The intended fix is to move these blocking paths onto the async/waker `EventBus` mechanism
+(`wait_for_event(...).await`), as already done for `wait4` and `Semaphore::acquire`:
+
+- **C-min** — convert `sys_select` / `sys_epoll_pwait` (`syscall/fs.rs`) into `Future`s like the
+  existing `sys_poll::PollFuture`, polling each fd's `async_poll(cx)` and registering wakers on the
+  per-object `EventBus`; drop the `register_epoll_list` / `epoll_queue` / `epoll_callback` hack.
+  Drive poll/select timeouts via `NAIVE_TIMER` instead of `TICK_ACTIVITY`.
+- **C-full** — async-ify the `net::Socket` trait (`read`/`write`/`connect`/`accept` → `async fn`),
+  give each socket its own `EventBus` that the NIC drivers `set()` on RX/TX (replacing
+  `SOCKET_ACTIVITY.notify_all()`), update `FileLike` (`fs/file/like.rs`) and `syscall/net.rs`
+  accordingly. After this, `Condvar`, the three global condvar statics, and
+  `syscall::spin_and_wait` can be deleted.
+
+Until then `Condvar::wait`/`wait_events` stay as the spin, used by the net socket path
+(`net/structs.rs`) and the not-yet-converted `sys_select`/`sys_epoll_pwait`.
