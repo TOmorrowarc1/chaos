@@ -25,7 +25,8 @@ pub fn add_user_shell() {
     let init_args: Vec<String> = vec!["busybox".into(), "ash".into()];
 
     if let Ok(inode) = ROOT_INODE.lookup(init_shell) {
-        let thread = Thread::new_user(&inode, init_shell, init_args, init_envs);
+        let (proc, entry, sp) = Process::new_user(&inode, init_shell, init_args, init_envs);
+        let thread = Thread::new(proc, entry, sp);
         spawn(thread);
     } else {
         todo!()

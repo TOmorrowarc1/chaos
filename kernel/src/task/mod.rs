@@ -30,7 +30,6 @@ pub fn init() {
 static mut PROCESSORS: [Option<Arc<Thread>>; MAX_CPU_NUM] = [None; MAX_CPU_NUM];
 
 /// Get the thread currently running on this CPU.
-///
 /// `Thread` is effectively a CPU-local object while running.
 pub fn current_thread() -> Option<Arc<Thread>> {
     let cpu_id = cpu::id();

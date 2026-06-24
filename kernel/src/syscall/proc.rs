@@ -21,7 +21,18 @@ use core::{
 impl Syscall<'_> {
     /// Fork the current process. Return the child's PID.
     pub fn sys_fork(&mut self) -> SysResult {
-        let new_thread = self.thread.fork(self.context);
+        let proc = self.process().fork();
+        let mut context = self.context.clone();
+        context.set_syscall_ret(0);
+        let new_thread = Thread::new(proc, context.sepc, context.get_sp());
+        // Link child ↔ parent.
+        // Process::fork leaves the parent Weak empty; we fill it here.
+        {
+            let parent_proc = self.thread.proc.clone();
+            new_thread.proc.lock().parent.1 = Arc::downgrade(&parent_proc);
+            let child_pid = Pid(new_thread.tid);
+            self.process().children.push((child_pid, Arc::downgrade(&new_thread.proc)));
+        }
         let pid = new_thread.proc.lock().pid.get();
         info!("fork: {} -> {}", self.process().pid, pid);
         spawn(new_thread);
@@ -68,7 +79,7 @@ impl Syscall<'_> {
         let child_tid_ref = unsafe { self.vm().check_write_ptr(child_tid)? };
         let mut new_thread = self
             .thread
-            .new_clone(self.context, newsp, newtls, child_tid as usize);
+            .clone_thread(self.context, newsp, newtls, child_tid as usize);
         if clone_flags.contains(CloneFlags::CHILD_CLEARTID) {
             new_thread.inner.lock().clear_child_tid = child_tid as usize;
         }
@@ -224,7 +235,7 @@ impl Syscall<'_> {
         // Re-create vm
         let mut vm = self.vm();
         let (entry_addr, ustack_top) =
-            Thread::new_user_vm(&inode, args, envs, &mut vm).map_err(|_| SysError::EINVAL)?;
+            Process::new_user_vm(&inode, args, envs, &mut vm).map_err(|_| SysError::EINVAL)?;
 
         // Kill other threads
         // TODO: stop and wait until they are finished
