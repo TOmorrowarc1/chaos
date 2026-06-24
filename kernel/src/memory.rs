@@ -118,11 +118,22 @@ impl Drop for KernelStack {
 }
 
 pub fn handle_page_fault(addr: usize) -> bool {
-    todo!()
+    debug!("page fault from kernel @ {:#x}", addr);
+
+    let thread = current_thread().unwrap();
+    let mut lock = thread.vm.lock();
+    lock.handle_page_fault(addr)
 }
 
 pub fn handle_page_fault_ext(addr: usize, access: AccessType) -> bool {
-    todo!()
+    debug!(
+        "page fault from kernel @ {:#x} with access type {:?}",
+        addr, access
+    );
+
+    let thread = current_thread().unwrap();
+    let mut lock = thread.vm.lock();
+    lock.handle_page_fault_ext(addr, access)
 }
 
 pub fn init_heap() {
