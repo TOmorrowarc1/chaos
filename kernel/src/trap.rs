@@ -30,13 +30,13 @@ pub fn do_tick() {
 }
 
 pub fn uptime_msec() -> usize {
-    todo!()
+    unsafe { wall_tick() * USEC_PER_TICK / 1000 }
 }
 
 pub fn timer() {
     do_tick();
-    // NAIVE_TIMER.lock().expire(Duration::from_micros(...))
-    todo!()
+    let now = crate::arch::timer::timer_now();
+    NAIVE_TIMER.lock().expire(now);
 }
 
 pub fn serial(c: u8) {
