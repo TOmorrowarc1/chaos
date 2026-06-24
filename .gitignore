@@ -31,4 +31,3 @@ modules/*/objs
 modules/*/target
 test/
 rCore/
-crate/
