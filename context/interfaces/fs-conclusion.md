@@ -53,7 +53,7 @@ impl FileHandle {
 pub enum FileLike {
     File(FileHandle),                     // everything backed by an INode
     Socket(Box<dyn Socket>),              // network socket
-    EpollInstance(EpollInstance),          // epoll fd
+    EpollInstance(EpollInstance),         // epoll fd
 }
 
 impl FileLike {
