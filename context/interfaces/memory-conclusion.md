@@ -147,7 +147,7 @@ pub trait Entry {
 
 ```rust
 pub trait PageTableExt: PageTable + Sized {
-    fn new() -> Self { ... }            // new_bare() + map_kernel()
+    fn new() -> Self { ... }           // new_bare() + map_kernel()
     fn new_bare() -> Self;             // alloc root frame, zero it
     fn map_kernel(&mut self);          // write kernel superpage entries
     fn token(&self) -> usize;          // SATP value = root_frame.ppn | mode
@@ -536,7 +536,7 @@ User code accesses unmapped page
       → find area containing addr
       → handler.handle_page_fault_ext(&mut pt, addr, access)
         → Delay: alloc frame, zero, set PTE present=true
-        → File:   alloc frame, read file data, set PTE present=true
+        → File: alloc frame, read file data, set PTE present=true
       → return true/false
   → if false: panic/SIGSEGV
   → sret (retry faulting instruction)
