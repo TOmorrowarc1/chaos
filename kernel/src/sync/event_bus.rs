@@ -43,23 +43,32 @@ impl EventBus {
     }
 
     pub fn set(&mut self, set: Event) {
-        todo!()
+        self.change(Event::empty(), set);
     }
 
     pub fn clear(&mut self, set: Event) {
-        todo!()
+        self.change(set, Event::empty());
     }
 
     pub fn change(&mut self, reset: Event, set: Event) {
-        todo!()
+        let origin = self.event;
+        let mut new = self.event;
+        new.remove(reset);
+        new.insert(set);
+        self.event = new;
+        // Only fire callbacks if the flags actually changed; drop the one-shot
+        // callbacks (those returning `true`) that have fired.
+        if new != origin {
+            self.callbacks.retain(|f| !f(new));
+        }
     }
 
     pub fn subscribe(&mut self, callback: EventHandler) {
-        todo!()
+        self.callbacks.push(callback);
     }
 
     pub fn get_callback_len(&self) -> usize {
-        todo!()
+        self.callbacks.len()
     }
 }
 
@@ -78,6 +87,22 @@ impl Future for EventBusFuture {
     type Output = Event;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        todo!()
+        let mut lock = self.bus.lock();
+        // Level check: if any requested event is already set, we're done.
+        if !(lock.event & self.mask).is_empty() {
+            return Poll::Ready(lock.event);
+        }
+        // Otherwise register a one-shot waker closure that fires when our mask
+        // is signaled by a future `change()`.
+        let waker = cx.waker().clone();
+        let mask = self.mask;
+        lock.subscribe(Box::new(move |s| {
+            if (s & mask).is_empty() {
+                return false;
+            }
+            waker.wake_by_ref();
+            true
+        }));
+        Poll::Pending
     }
 }
