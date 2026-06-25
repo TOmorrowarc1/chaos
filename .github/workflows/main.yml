@@ -44,8 +44,8 @@ jobs:
       run: |
         if [ ! -d qemu-4.2.0 ]; then
           wget https://download.qemu.org/qemu-4.2.0.tar.xz && tar xJf qemu-4.2.0.tar.xz > /dev/null
-          sed -i 's/-nopie/-no-pie/g' qemu-4.2.0/pc-bios/optionrom/Makefile
         fi
+        sed -i 's/-nopie/-no-pie/g' qemu-4.2.0/pc-bios/optionrom/Makefile
         cd qemu-4.2.0 && ./configure --target-list=${{ matrix.arch }}-softmmu && sudo make install -j && cd ..
 
     - name: Download prebuilt user image
