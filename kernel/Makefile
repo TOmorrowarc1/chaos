@@ -146,7 +146,7 @@ qemu_opts += \
 else
 qemu_opts += \
 	-machine virt \
-	-cpu rv64,x-h=true \
+	-cpu rv64 \
 	-m 2G \
 	-serial mon:stdio
 ifeq ($(UART2), on)
