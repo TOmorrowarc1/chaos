@@ -42,7 +42,7 @@ jobs:
         cd qemu-4.2.0 && ./configure --target-list=${{ matrix.arch }}-softmmu && sudo make install -j && cd ..
 
     - name: Install dependencies
-      run: sudo apt install -y device-tree-compiler
+      run: sudo apt install -y device-tree-compiler libglib2.0-dev
 
     - name: Download prebuilt user image
       run: cd user && make sfsimg ARCH=${{ matrix.arch }} PREBUILT=1 && cd ..
