@@ -31,22 +31,10 @@ jobs:
         toolchain: nightly-2020-06-04
         components: rust-src, llvm-tools-preview
 
-    - name: Cache QEMU
-      uses: actions/cache@v4
-      with:
-        path: qemu-4.2.0
-        key: ${{ runner.os }}-${{ matrix.arch }}-qemu
-
-    - name: Install dependencies
-      run: sudo apt install -y device-tree-compiler libglib2.0-dev libpixman-1-dev pkg-config binutils
-
-    - name: Install QEMU
+    - name: Install system dependencies
       run: |
-        if [ ! -d qemu-4.2.0 ]; then
-          wget https://download.qemu.org/qemu-4.2.0.tar.xz && tar xJf qemu-4.2.0.tar.xz > /dev/null
-        fi
-        sed -i 's/-nopie/-no-pie/g' qemu-4.2.0/pc-bios/optionrom/Makefile
-        cd qemu-4.2.0 && ./configure --target-list=${{ matrix.arch }}-softmmu && sudo make install -j && cd ..
+        sudo apt update
+        sudo apt install -y device-tree-compiler qemu-system-x86 qemu-system-arm qemu-system-misc
 
     - name: Download prebuilt user image
       run: cd user && make sfsimg ARCH=${{ matrix.arch }} PREBUILT=1 && cd ..
@@ -56,7 +44,7 @@ jobs:
 
     - name: Smoke-test kernel (timeout = success)
       run: >
-        timeout 60 sh -c 'cd kernel && make run ARCH=${{ matrix.arch }}'
+        timeout 30 sh -c 'cd kernel && make run ARCH=${{ matrix.arch }}'
         || [ $? -eq 124 ]
 
     - name: Build kernel with hypervisor
