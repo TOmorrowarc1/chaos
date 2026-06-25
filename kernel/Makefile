@@ -311,7 +311,7 @@ sym:
 
 bootloader: $(kernel)
 ifeq ($(ARCH), x86_64)
-	@cd ../rboot && make build
+	@cd ../rboot && make build || true
 endif
 
 $(kernel_img): kernel bootloader
