@@ -90,11 +90,10 @@ impl Thread {
     /// Create a new (main) thread inside `proc` (which has already been built
     /// by `Process::new_user` or `Process::fork`).  Builds the `ThreadContext`,
     /// registers the thread in `THREADS`, and links it into `PROCESSES`.
-    pub fn new(proc: Arc<Mutex<Process>>, entry: usize, sp: usize) -> Arc<Thread> {
-        // User context: entry point + stack pointer.
-        let mut context = UserContext::default();
-        context.set_ip(entry);
-        context.set_sp(sp);
+    pub fn new(proc: Arc<Mutex<Process>>, context: &UserContext) -> Arc<Thread> {
+        // Clone the caller-provided user context; we only apply arch-specific
+        // CSR / flags on top.
+        let mut context = context.clone();
 
         // Arch-specific register initialisation.
         #[cfg(target_arch = "x86_64")]

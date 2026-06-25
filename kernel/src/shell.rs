@@ -4,6 +4,7 @@ use crate::fs::ROOT_INODE;
 use crate::task::*;
 use alloc::string::String;
 use alloc::vec::Vec;
+use trapframe::UserContext;
 
 /// Spawn shell as init process
 pub fn add_user_shell() {
@@ -26,7 +27,10 @@ pub fn add_user_shell() {
 
     if let Ok(inode) = ROOT_INODE.lookup(init_shell) {
         let (proc, entry, sp) = Process::new_user(&inode, init_shell, init_args, init_envs);
-        let thread = Thread::new(proc, entry, sp);
+        let mut context = UserContext::default();
+        context.set_ip(entry);
+        context.set_sp(sp);
+        let thread = Thread::new(proc, &context);
         spawn(thread);
     } else {
         todo!()

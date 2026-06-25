@@ -24,7 +24,7 @@ impl Syscall<'_> {
         let proc = self.process().fork();
         let mut context = self.context.clone();
         context.set_syscall_ret(0);
-        let new_thread = Thread::new(proc, context.sepc, context.get_sp());
+        let new_thread = Thread::new(proc, &context);
         // Link child ↔ parent.
         // Process::fork leaves the parent Weak empty; we fill it here.
         {
