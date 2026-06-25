@@ -28,5 +28,7 @@ impl Device for MemBuf {
         Ok(len)
     }
 
-    fn sync(&self) -> Result<()> { Ok(()) }
+    fn sync(&self) -> Result<()> {
+        Ok(())
+    }
 }

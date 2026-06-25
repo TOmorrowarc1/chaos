@@ -1,7 +1,7 @@
 use crate::fs::FileLike;
-use crate::task::Process;
 use crate::sync::SpinNoIrqLock;
 use crate::syscall::{SysError, SysResult};
+use crate::task::Process;
 use alloc::collections::{BTreeMap, BTreeSet};
 
 pub struct EPollCtlOp;
@@ -59,7 +59,9 @@ impl EpollInstance {
 }
 
 #[derive(Clone, Copy)]
-pub struct EpollData { _ptr: u64 }
+pub struct EpollData {
+    _ptr: u64,
+}
 
 #[derive(Clone)]
 pub struct EpollEvent {

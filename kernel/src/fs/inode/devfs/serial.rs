@@ -44,7 +44,11 @@ impl INode for Serial {
         Ok(buf.len())
     }
     fn poll(&self) -> Result<PollStatus> {
-        Ok(PollStatus { read: true, write: true, error: false })
+        Ok(PollStatus {
+            read: true,
+            write: true,
+            error: false,
+        })
     }
     fn metadata(&self) -> Result<Metadata> {
         Ok(Metadata {
@@ -64,5 +68,7 @@ impl INode for Serial {
             rdev: make_rdev(4, self.id),
         })
     }
-    fn as_any_ref(&self) -> &dyn Any { self }
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
 }

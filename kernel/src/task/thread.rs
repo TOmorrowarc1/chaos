@@ -1,7 +1,7 @@
 //! `Thread` — the schedulable execution unit, plus scheduling glue.
 
-use super::{Process, PROCESSORS};
 use super::process::{add_to_process_table, Pid};
+use super::{Process, PROCESSORS};
 use crate::arch::cpu;
 use crate::arch::fp::FpState;
 use crate::arch::interrupt::consts::{
@@ -11,11 +11,11 @@ use crate::arch::interrupt::{get_trap_num, handle_reserved_inst};
 use crate::arch::memory::{get_page_fault_addr, set_page_table};
 use crate::arch::paging::*;
 use crate::drivers::IRQ_MANAGER;
+use crate::memory::AccessType;
 use crate::memory::MemorySet;
-use crate::signal::{handle_signal, Sigset, SignalStack};
+use crate::signal::{handle_signal, SignalStack, Sigset};
 use crate::sync::SpinNoIrqLock as Mutex;
 use crate::syscall::handle_syscall;
-use crate::memory::AccessType;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
@@ -79,9 +79,7 @@ impl Thread {
         let mut table = THREADS.write();
 
         // assign tid, do not start from 0
-        let tid = (Pid::INIT..)
-            .find(|i| table.get(i).is_none())
-            .unwrap();
+        let tid = (Pid::INIT..).find(|i| table.get(i).is_none()).unwrap();
         self.tid = tid;
 
         let self_ref = Arc::new(self);
@@ -100,13 +98,22 @@ impl Thread {
 
         // Arch-specific register initialisation.
         #[cfg(target_arch = "x86_64")]
-        { context.general.rflags = 0x3202; }
+        {
+            context.general.rflags = 0x3202;
+        }
         #[cfg(riscv)]
-        { context.sstatus = 1 << 18 | 1 << 14 | 1 << 13 | 1 << 5; }
+        {
+            context.sstatus = 1 << 18 | 1 << 14 | 1 << 13 | 1 << 5;
+        }
         #[cfg(target_arch = "aarch64")]
-        { context.spsr = 0b1101_00_0000; }
+        {
+            context.spsr = 0b1101_00_0000;
+        }
         #[cfg(target_arch = "mips")]
-        { context.status = 1 << 4 | 1 << 29 | 1; context.status |= 1 << 8 | 1 << 9 | 1 << 15 | 1 << 14 | 1 << 13 | 1 << 12; }
+        {
+            context.status = 1 << 4 | 1 << 29 | 1;
+            context.status |= 1 << 8 | 1 << 9 | 1 << 15 | 1 << 14 | 1 << 13 | 1 << 12;
+        }
 
         let thread = Thread {
             tid: 0, // assigned below
@@ -184,9 +191,11 @@ impl Thread {
         proc.sig_queue.iter().any(|(info, tid)| {
             let tid = *tid;
             (tid == -1 || tid as usize == self.tid)
-                && !self.inner.lock().sig_mask.contains(
-                    num::FromPrimitive::from_i32(info.signo).unwrap(),
-                )
+                && !self
+                    .inner
+                    .lock()
+                    .sig_mask
+                    .contains(num::FromPrimitive::from_i32(info.signo).unwrap())
         })
     }
 }
@@ -223,20 +232,13 @@ pub fn spawn(thread: Arc<Thread>) {
                     #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
                     {
                         use crate::arch::interrupt::consts::{
-                            is_execute_page_fault, is_read_page_fault,
-                            is_write_page_fault,
+                            is_execute_page_fault, is_read_page_fault, is_write_page_fault,
                         };
                         use crate::arch::interrupt::handle_user_page_fault_ext;
                         let access_type = match trap_num {
-                            _ if is_execute_page_fault(trap_num) => {
-                                AccessType::execute(true)
-                            }
-                            _ if is_read_page_fault(trap_num) => {
-                                AccessType::read(true)
-                            }
-                            _ if is_write_page_fault(trap_num) => {
-                                AccessType::write(true)
-                            }
+                            _ if is_execute_page_fault(trap_num) => AccessType::execute(true),
+                            _ if is_read_page_fault(trap_num) => AccessType::read(true),
+                            _ if is_write_page_fault(trap_num) => AccessType::write(true),
                             _ => unreachable!(),
                         };
                         if !handle_user_page_fault_ext(&thread, addr, access_type) {

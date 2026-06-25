@@ -29,7 +29,11 @@ impl INode for Fbdev {
     }
 
     fn poll(&self) -> Result<PollStatus> {
-        Ok(PollStatus { read: true, write: false, error: false })
+        Ok(PollStatus {
+            read: true,
+            write: false,
+            error: false,
+        })
     }
 
     fn metadata(&self) -> Result<Metadata> {

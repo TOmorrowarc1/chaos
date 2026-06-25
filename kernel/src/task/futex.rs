@@ -100,7 +100,9 @@ impl Future for FutexFuture {
 
             if let Some(deadline) = self.deadline {
                 let waker = cx.waker().clone();
-                NAIVE_TIMER.lock().add(deadline, Box::new(move |_| waker.wake()));
+                NAIVE_TIMER
+                    .lock()
+                    .add(deadline, Box::new(move |_| waker.wake()));
             }
         }
         Poll::Pending

@@ -4,7 +4,9 @@ use rcore_fs::vfs::*;
 
 use crate::sync::SpinNoIrqLock as Mutex;
 
-struct RandomINodeData { seed: u32 }
+struct RandomINodeData {
+    seed: u32,
+}
 
 pub struct RandomINode {
     data: Arc<Mutex<RandomINodeData>>,
@@ -13,7 +15,10 @@ pub struct RandomINode {
 
 impl RandomINode {
     pub fn new(secure: bool) -> RandomINode {
-        RandomINode { secure, data: Arc::new(Mutex::new(RandomINodeData { seed: 1 })) }
+        RandomINode {
+            secure,
+            data: Arc::new(Mutex::new(RandomINodeData { seed: 1 })),
+        }
     }
 }
 
@@ -31,9 +36,15 @@ impl INode for RandomINode {
             Ok(0)
         }
     }
-    fn write_at(&self, _offset: usize, _buf: &[u8]) -> Result<usize> { Err(FsError::NotSupported) }
+    fn write_at(&self, _offset: usize, _buf: &[u8]) -> Result<usize> {
+        Err(FsError::NotSupported)
+    }
     fn poll(&self) -> Result<PollStatus> {
-        Ok(PollStatus { read: true, write: false, error: false })
+        Ok(PollStatus {
+            read: true,
+            write: false,
+            error: false,
+        })
     }
     fn metadata(&self) -> Result<Metadata> {
         Ok(Metadata {
@@ -54,5 +65,7 @@ impl INode for RandomINode {
             rdev: make_rdev(1, if self.secure { 9 } else { 8 }),
         })
     }
-    fn as_any_ref(&self) -> &dyn Any { self }
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
 }

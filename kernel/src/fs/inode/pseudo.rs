@@ -9,13 +9,18 @@ pub struct Pseudo {
 
 impl Pseudo {
     pub fn new(s: &str, type_: FileType) -> Self {
-        Pseudo { content: Vec::from(s.as_bytes()), type_ }
+        Pseudo {
+            content: Vec::from(s.as_bytes()),
+            type_,
+        }
     }
 }
 
 impl INode for Pseudo {
     fn read_at(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
-        if offset >= self.content.len() { return Ok(0); }
+        if offset >= self.content.len() {
+            return Ok(0);
+        }
         let len = (self.content.len() - offset).min(buf.len());
         buf[..len].copy_from_slice(&self.content[offset..offset + len]);
         Ok(len)
@@ -26,19 +31,33 @@ impl INode for Pseudo {
     }
 
     fn poll(&self) -> Result<PollStatus> {
-        Ok(PollStatus { read: true, write: false, error: false })
+        Ok(PollStatus {
+            read: true,
+            write: false,
+            error: false,
+        })
     }
 
     fn metadata(&self) -> Result<Metadata> {
         Ok(Metadata {
-            dev: 0, inode: 0, size: self.content.len(),
-            blk_size: 0, blocks: 0,
+            dev: 0,
+            inode: 0,
+            size: self.content.len(),
+            blk_size: 0,
+            blocks: 0,
             atime: Timespec { sec: 0, nsec: 0 },
             mtime: Timespec { sec: 0, nsec: 0 },
             ctime: Timespec { sec: 0, nsec: 0 },
-            type_: self.type_, mode: 0, nlinks: 1, uid: 0, gid: 0, rdev: 0,
+            type_: self.type_,
+            mode: 0,
+            nlinks: 1,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
         })
     }
 
-    fn as_any_ref(&self) -> &dyn Any { self }
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
 }

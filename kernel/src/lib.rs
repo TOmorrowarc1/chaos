@@ -51,13 +51,13 @@ pub mod lang;
 pub mod lkm;
 pub mod memory;
 pub mod net;
-pub mod task;
 #[cfg(feature = "hypervisor")]
 pub mod rvm;
 pub mod shell;
 pub mod signal;
 pub mod sync;
 pub mod syscall;
+pub mod task;
 pub mod trap;
 
 #[allow(dead_code)]

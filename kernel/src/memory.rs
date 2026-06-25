@@ -1,6 +1,6 @@
 use crate::consts::{KERNEL_OFFSET, MEMORY_OFFSET, PHYSICAL_MEMORY_OFFSET};
-use crate::task::current_thread;
 use crate::sync::SpinNoIrqLock;
+use crate::task::current_thread;
 use bitmap_allocator::BitAlloc;
 use buddy_system_allocator::Heap;
 use core::mem;

@@ -1,5 +1,5 @@
-use crate::fs::epoll::EpollInstance;
 use super::handle::FileHandle;
+use crate::fs::epoll::EpollInstance;
 use crate::net::Socket;
 use crate::syscall::{SysError, SysResult};
 use alloc::boxed::Box;

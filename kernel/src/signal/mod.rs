@@ -2,8 +2,8 @@ use crate::arch::{
     signal::{set_signal_handler, MachineContext, RET_CODE},
     syscall::SYS_RT_SIGRETURN,
 };
-use crate::task::{process, process_of, Process, Thread};
 use crate::sync::{Event, MutexGuard, SpinNoIrqLock as Mutex};
+use crate::task::{process, process_of, Process, Thread};
 use alloc::sync::Arc;
 use bitflags::*;
 use num::FromPrimitive;

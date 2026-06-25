@@ -8,7 +8,11 @@ use rcore_fs::vfs::{FileType, FsError, INode, MMapArea, Metadata, PollStatus, Re
 use rcore_memory::memory_set::handler::File;
 use spin::RwLock;
 
-enum Flock { None, Shared, Exclusive }
+enum Flock {
+    None,
+    Shared,
+    Exclusive,
+}
 
 struct OpenFileDescription {
     offset: u64,
@@ -18,7 +22,11 @@ struct OpenFileDescription {
 
 impl OpenFileDescription {
     fn create(options: OpenOptions) -> Arc<RwLock<Self>> {
-        Arc::new(RwLock::new(OpenFileDescription { offset: 0, options, flock: Flock::None }))
+        Arc::new(RwLock::new(OpenFileDescription {
+            offset: 0,
+            options,
+            flock: Flock::None,
+        }))
     }
 }
 
@@ -47,8 +55,20 @@ pub enum SeekFrom {
 }
 
 impl FileHandle {
-    pub fn new(inode: Arc<dyn INode>, options: OpenOptions, path: String, pipe: bool, fd_cloexec: bool) -> Self {
-        FileHandle { inode, description: OpenFileDescription::create(options), path, pipe, fd_cloexec }
+    pub fn new(
+        inode: Arc<dyn INode>,
+        options: OpenOptions,
+        path: String,
+        pipe: bool,
+        fd_cloexec: bool,
+    ) -> Self {
+        FileHandle {
+            inode,
+            description: OpenFileDescription::create(options),
+            path,
+            pipe,
+            fd_cloexec,
+        }
     }
 
     pub fn dup(&self, fd_cloexec: bool) -> Self {
@@ -166,7 +186,9 @@ impl FileHandle {
         if !description.options.read {
             return Err(FsError::InvalidParam); // TODO: => EBADF
         }
-        let ret = self.inode.get_entry_with_metadata(description.offset as usize)?;
+        let ret = self
+            .inode
+            .get_entry_with_metadata(description.offset as usize)?;
         description.offset += 1;
         Ok(ret)
     }
@@ -208,5 +230,7 @@ impl FileHandle {
         }
     }
 
-    pub fn inode(&self) -> Arc<dyn INode> { self.inode.clone() }
+    pub fn inode(&self) -> Arc<dyn INode> {
+        self.inode.clone()
+    }
 }

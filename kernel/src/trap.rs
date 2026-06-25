@@ -1,4 +1,4 @@
-use crate::consts::{USEC_PER_TICK};
+use crate::consts::USEC_PER_TICK;
 use crate::fs::TTY;
 use crate::sync::{Condvar, SpinNoIrqLock as Mutex};
 use core::sync::atomic::{AtomicUsize, Ordering};

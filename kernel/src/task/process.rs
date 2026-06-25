@@ -1,7 +1,9 @@
 //! `Process` — the shared-resource container (corresponds to rCore `proc.rs`).
 
+use super::init::{
+    self, ElfExt, ProcInitInfo, AT_BASE, AT_ENTRY, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
+};
 use super::{Futex, Tid};
-use super::init::{self, ElfExt, ProcInitInfo, AT_BASE, AT_ENTRY, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM};
 use crate::consts::{USER_STACK_OFFSET, USER_STACK_SIZE};
 use crate::fs::{FileHandle, FileLike, OpenOptions};
 use crate::ipc::{SemProc, ShmProc};
@@ -110,7 +112,11 @@ lazy_static! {
 
 /// Return the process that thread `tid` belongs to.
 pub fn process_of(tid: usize) -> Option<Arc<Mutex<Process>>> {
-    PROCESSES.read().values().find(|p| p.lock().threads.contains(&tid)).cloned()
+    PROCESSES
+        .read()
+        .values()
+        .find(|p| p.lock().threads.contains(&tid))
+        .cloned()
 }
 
 /// Get a process by pid.
@@ -120,7 +126,12 @@ pub fn process(pid: usize) -> Option<Arc<Mutex<Process>>> {
 
 /// Get all processes in a process group.
 pub fn process_group(pgid: Pgid) -> Vec<Arc<Mutex<Process>>> {
-    PROCESSES.read().values().filter(|p| p.lock().pgid == pgid).cloned().collect()
+    PROCESSES
+        .read()
+        .values()
+        .filter(|p| p.lock().pgid == pgid)
+        .cloned()
+        .collect()
 }
 
 /// Assign `pid` to the process and register it in the global process table.
@@ -198,7 +209,9 @@ impl Process {
         vm: &mut MemorySet,
     ) -> Result<(usize, usize), &'static str> {
         let mut data = [0u8; 0x3c0];
-        inode.read_at(0, &mut data).map_err(|_| "failed to read from INode")?;
+        inode
+            .read_at(0, &mut data)
+            .map_err(|_| "failed to read from INode")?;
         let elf = ElfFile::new(&data)?;
 
         match elf.header.pt2.type_().as_type() {
@@ -236,7 +249,9 @@ impl Process {
                 .lookup_follow(loader_path, crate::fs::FOLLOW_MAX_DEPTH)
                 .map_err(|_| "interpreter not found")?;
             let mut interp_data: [u8; 0x3c0] = unsafe { MaybeUninit::zeroed().assume_init() };
-            interp_inode.read_at(0, &mut interp_data).map_err(|_| "failed to read from INode")?;
+            interp_inode
+                .read_at(0, &mut interp_data)
+                .map_err(|_| "failed to read from INode")?;
             let elf_interp = ElfFile::new(&interp_data)?;
             elf_interp.append_as_interpreter(&interp_inode, vm, bias);
             auxv.insert(AT_ENTRY, elf.header.pt2.entry_point() as usize);
@@ -285,21 +300,51 @@ impl Process {
         let vm = Arc::new(Mutex::new(vm));
 
         let mut files = BTreeMap::new();
-        files.insert(0, FileLike::File(FileHandle::new(
-            crate::fs::TTY.clone(),
-            OpenOptions { read: true, write: false, append: false, nonblock: false },
-            String::from("/dev/tty"), false, false,
-        )));
-        files.insert(1, FileLike::File(FileHandle::new(
-            crate::fs::TTY.clone(),
-            OpenOptions { read: false, write: true, append: false, nonblock: false },
-            String::from("/dev/tty"), false, false,
-        )));
-        files.insert(2, FileLike::File(FileHandle::new(
-            crate::fs::TTY.clone(),
-            OpenOptions { read: false, write: true, append: false, nonblock: false },
-            String::from("/dev/tty"), false, false,
-        )));
+        files.insert(
+            0,
+            FileLike::File(FileHandle::new(
+                crate::fs::TTY.clone(),
+                OpenOptions {
+                    read: true,
+                    write: false,
+                    append: false,
+                    nonblock: false,
+                },
+                String::from("/dev/tty"),
+                false,
+                false,
+            )),
+        );
+        files.insert(
+            1,
+            FileLike::File(FileHandle::new(
+                crate::fs::TTY.clone(),
+                OpenOptions {
+                    read: false,
+                    write: true,
+                    append: false,
+                    nonblock: false,
+                },
+                String::from("/dev/tty"),
+                false,
+                false,
+            )),
+        );
+        files.insert(
+            2,
+            FileLike::File(FileHandle::new(
+                crate::fs::TTY.clone(),
+                OpenOptions {
+                    read: false,
+                    write: true,
+                    append: false,
+                    nonblock: false,
+                },
+                String::from("/dev/tty"),
+                false,
+                false,
+            )),
+        );
 
         let proc = Arc::new(Mutex::new(Process {
             vm,

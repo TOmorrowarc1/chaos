@@ -28,16 +28,23 @@ impl<'a, T> Drop for SpinGuard<'a, T> {
 
 impl<'a, T> Deref for SpinGuard<'a, T> {
     type Target = T;
-    fn deref(&self) -> &T { unsafe { &*self.lock.data.get() } }
+    fn deref(&self) -> &T {
+        unsafe { &*self.lock.data.get() }
+    }
 }
 
 impl<'a, T> DerefMut for SpinGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut T { unsafe { &mut *self.lock.data.get() } }
+    fn deref_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.lock.data.get() }
+    }
 }
 
 impl<T> SpinLock<T> {
     pub const fn new(user_data: T) -> Self {
-        SpinLock { lock: AtomicBool::new(false), data: UnsafeCell::new(user_data) }
+        SpinLock {
+            lock: AtomicBool::new(false),
+            data: UnsafeCell::new(user_data),
+        }
     }
 
     pub fn lock(&self) -> SpinGuard<'_, T> {
@@ -64,12 +71,20 @@ impl<T> SpinLock<T> {
     }
 
     pub fn busy_lock(&self) -> SpinGuard<'_, T> {
-        loop { if let Some(g) = self.try_lock() { return g; } }
+        loop {
+            if let Some(g) = self.try_lock() {
+                return g;
+            }
+        }
     }
 
-    pub unsafe fn force_unlock(&self) { self.lock.store(false, Ordering::Release); }
+    pub unsafe fn force_unlock(&self) {
+        self.lock.store(false, Ordering::Release);
+    }
 
-    pub fn into_inner(self) -> T { self.data.into_inner() }
+    pub fn into_inner(self) -> T {
+        self.data.into_inner()
+    }
 }
 
 impl<T: Clone> Clone for SpinLock<T> {
@@ -88,7 +103,10 @@ impl<T: fmt::Debug> fmt::Debug for SpinLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try_lock() {
             Some(guard) => f.debug_struct("SpinLock").field("data", &*guard).finish(),
-            None => f.debug_struct("SpinLock").field("data", &"<locked>").finish(),
+            None => f
+                .debug_struct("SpinLock")
+                .field("data", &"<locked>")
+                .finish(),
         }
     }
 }
@@ -118,11 +136,15 @@ impl<'a, T> Drop for NoIrqGuard<'a, T> {
 
 impl<'a, T> Deref for NoIrqGuard<'a, T> {
     type Target = T;
-    fn deref(&self) -> &T { unsafe { &*self.lock.data.get() } }
+    fn deref(&self) -> &T {
+        unsafe { &*self.lock.data.get() }
+    }
 }
 
 impl<'a, T> DerefMut for NoIrqGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut T { unsafe { &mut *self.lock.data.get() } }
+    fn deref_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.lock.data.get() }
+    }
 }
 
 impl<'a, T> NoIrqGuard<'a, T> {
@@ -135,7 +157,10 @@ impl<'a, T> NoIrqGuard<'a, T> {
 
 impl<T> SpinNoIrqLock<T> {
     pub const fn new(user_data: T) -> Self {
-        SpinNoIrqLock { lock: AtomicBool::new(false), data: UnsafeCell::new(user_data) }
+        SpinNoIrqLock {
+            lock: AtomicBool::new(false),
+            data: UnsafeCell::new(user_data),
+        }
     }
 
     pub fn lock(&self) -> NoIrqGuard<'_, T> {
@@ -157,7 +182,10 @@ impl<T> SpinNoIrqLock<T> {
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            Some(NoIrqGuard { lock: self, _flags: flags })
+            Some(NoIrqGuard {
+                lock: self,
+                _flags: flags,
+            })
         } else {
             // CAS failed: dropping `flags` here restores the interrupt state.
             None
@@ -165,12 +193,20 @@ impl<T> SpinNoIrqLock<T> {
     }
 
     pub fn busy_lock(&self) -> NoIrqGuard<'_, T> {
-        loop { if let Some(g) = self.try_lock() { return g; } }
+        loop {
+            if let Some(g) = self.try_lock() {
+                return g;
+            }
+        }
     }
 
-    pub unsafe fn force_unlock(&self) { self.lock.store(false, Ordering::Release); }
+    pub unsafe fn force_unlock(&self) {
+        self.lock.store(false, Ordering::Release);
+    }
 
-    pub fn into_inner(self) -> T { self.data.into_inner() }
+    pub fn into_inner(self) -> T {
+        self.data.into_inner()
+    }
 }
 
 impl<T: Clone> Clone for SpinNoIrqLock<T> {
@@ -188,8 +224,14 @@ impl<T: Default> Default for SpinNoIrqLock<T> {
 impl<T: fmt::Debug> fmt::Debug for SpinNoIrqLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try_lock() {
-            Some(guard) => f.debug_struct("SpinNoIrqLock").field("data", &*guard).finish(),
-            None => f.debug_struct("SpinNoIrqLock").field("data", &"<locked>").finish(),
+            Some(guard) => f
+                .debug_struct("SpinNoIrqLock")
+                .field("data", &*guard)
+                .finish(),
+            None => f
+                .debug_struct("SpinNoIrqLock")
+                .field("data", &"<locked>")
+                .finish(),
         }
     }
 }
@@ -206,9 +248,13 @@ pub type MutexGuard<'a, T> = NoIrqGuard<'a, T>;
 pub struct FlagsGuard(usize);
 
 impl Drop for FlagsGuard {
-    fn drop(&mut self) { unsafe { interrupt::restore(self.0) } }
+    fn drop(&mut self) {
+        unsafe { interrupt::restore(self.0) }
+    }
 }
 
 impl FlagsGuard {
-    pub fn no_irq_region() -> Self { Self(unsafe { interrupt::disable_and_store() }) }
+    pub fn no_irq_region() -> Self {
+        Self(unsafe { interrupt::disable_and_store() })
+    }
 }
