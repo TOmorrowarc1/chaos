@@ -48,7 +48,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y device-tree-compiler qemu-system-x86 qemu-system-arm qemu-system-misc
+        sudo apt install -y device-tree-compiler qemu-system-x86 qemu-system-arm qemu-system-misc opensbi
 
     - name: Download prebuilt user image
       run: cd user && make sfsimg ARCH=${{ matrix.arch }} PREBUILT=1 && cd ..
