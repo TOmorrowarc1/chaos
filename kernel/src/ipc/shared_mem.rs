@@ -38,6 +38,20 @@ impl ShmIdentifier {
         key: usize,
         memsize: usize,
     ) -> Arc<spin::Mutex<SharedGuard<GlobalFrameAlloc>>> {
-        todo!()
+        let mut key2shm = KEY2SHM.write();
+        // Already exists and is alive → share it.
+        if let Some(weak_guard) = key2shm.get(&key) {
+            if let Some(guard) = weak_guard.upgrade() {
+                return guard;
+            }
+        }
+        // Create a new set of shared frames, register under the key (weak, so
+        // the guard is freed when all users detach).
+        let shared_guard = Arc::new(spin::Mutex::new(SharedGuard::new_with_size(
+            GlobalFrameAlloc,
+            memsize,
+        )));
+        key2shm.insert(key, Arc::downgrade(&shared_guard));
+        shared_guard
     }
 }
