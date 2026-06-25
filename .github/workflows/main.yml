@@ -38,7 +38,9 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.arch }}-qemu
     - name: Install QEMU
       run: |
-        [ ! -d qemu-4.2.0 ] && wget https://download.qemu.org/qemu-4.2.0.tar.xz && tar xJf qemu-4.2.0.tar.xz > /dev/null
+        if [ ! -d qemu-4.2.0 ]; then
+          wget https://download.qemu.org/qemu-4.2.0.tar.xz && tar xJf qemu-4.2.0.tar.xz > /dev/null
+        fi
         cd qemu-4.2.0 && ./configure --target-list=${{ matrix.arch }}-softmmu && sudo make install -j && cd ..
 
     - name: Install dependencies
