@@ -36,15 +36,16 @@ jobs:
       with:
         path: qemu-4.2.0
         key: ${{ runner.os }}-${{ matrix.arch }}-qemu
+
+    - name: Install dependencies
+      run: sudo apt install -y device-tree-compiler libglib2.0-dev pkg-config
+
     - name: Install QEMU
       run: |
         if [ ! -d qemu-4.2.0 ]; then
           wget https://download.qemu.org/qemu-4.2.0.tar.xz && tar xJf qemu-4.2.0.tar.xz > /dev/null
         fi
         cd qemu-4.2.0 && ./configure --target-list=${{ matrix.arch }}-softmmu && sudo make install -j && cd ..
-
-    - name: Install dependencies
-      run: sudo apt install -y device-tree-compiler libglib2.0-dev
 
     - name: Download prebuilt user image
       run: cd user && make sfsimg ARCH=${{ matrix.arch }} PREBUILT=1 && cd ..
