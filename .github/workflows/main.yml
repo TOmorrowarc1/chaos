@@ -50,6 +50,15 @@ jobs:
     - name: Download prebuilt user image
       run: cd user && make sfsimg ARCH=${{ matrix.arch }} PREBUILT=1 && cd ..
 
+    - name: Pre-fetch cargo deps (retry on network flake)
+      run: |
+        cd kernel
+        for i in $(seq 1 5); do
+          cargo fetch 2>&1 && break
+          echo "Retry $i/5..."
+          sleep 5
+        done
+
     - name: Build kernel
       run: cd kernel && make build ARCH=${{ matrix.arch }} && cd ..
 
