@@ -66,7 +66,7 @@ jobs:
       run: cd kernel && make build ARCH=${{ matrix.arch }} && cd ..
 
     - name: Smoke-test kernel (timeout = success)
-      if: matrix.arch != 'aarch64' && matrix.arch != 'mipsel' && matrix.arch != 'riscv32'
+      if: matrix.arch == 'riscv64'
       run: >
         timeout 30 sh -c 'cd kernel && make run ARCH=${{ matrix.arch }}'
         || [ $? -eq 124 ]

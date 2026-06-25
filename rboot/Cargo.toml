@@ -14,7 +14,6 @@ log = "0.4"
 xmas-elf = "0.7"
 x86_64 = "0.11"
 rlibc = "1.0.0"
-zero = "=0.1.2"
 
 [features]
 rboot = ["uefi-services"]
